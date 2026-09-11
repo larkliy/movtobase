@@ -1,0 +1,2409 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Бесплатные курсы по системному программированию — C# Low Level + Zero Allocations и Zig с нуля">
+      
+      
+      
+        <link rel="canonical" href="https://larkliy.github.io/movtobase/csharp/05-bezallokacionnyy-tcp-server/">
+      
+      
+        <link rel="prev" href="../04-struktura-nativeaot/">
+      
+      
+        <link rel="next" href="../06-system-io-pipelines/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>5. TCP-сервер без аллокаций - movtobase</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <meta name="robots" content="noindex, nofollow">
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tcp-c" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="movtobase" class="md-header__button md-logo" aria-label="movtobase" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            movtobase
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              5. TCP-сервер без аллокаций
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple"  aria-label="Светлая тема"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Светлая тема" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple"  aria-label="Тёмная тема"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Тёмная тема" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="movtobase" class="md-nav__button md-logo" aria-label="movtobase" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    movtobase
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Главная
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C# Low Level + Zero Allocations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C# Low Level + Zero Allocations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор курса
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-gc-iznutri/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. GC изнутри
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-span-i-memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Span и Memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-unsafe-i-memorymarshal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Unsafe и MemoryMarshal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-struktura-nativeaot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Структура NativeAOT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. TCP-сервер без аллокаций
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. TCP-сервер без аллокаций
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        На пальцах: почему мусор в сервере это боль
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Словарь терминов
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Сервер, который мусорит
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#socketasynceventargs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SocketAsyncEventArgs: коробка, которую создают один раз
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что внутри коробки
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#windows-iocp-overlapped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows: IOCP, overlapped и долгий пин
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unix-epoll" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unix: epoll, один поток и короткий пин
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Собираем сервер
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ловушки
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частые ошибки на примерах
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Как проверить, что аллокаций нет
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что в сухом остатке
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-system-io-pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. System.IO.Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.17.0-dev
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Zig 0.17.0-dev
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор курса
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Уроки
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Уроки
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/01-hello-world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Hello world
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/02-peremennye-i-tipy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Переменные и типы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/03-stroki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Строки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/04-oshibki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Ошибки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/05-usloviya-i-optionals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Условия и optionals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/06-cikly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Циклы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/07-funkcii/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Функции
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/08-struktury/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Структуры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Задачи
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Задачи
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/01-hello-world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Hello world
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/02-peremennye-i-tipy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Переменные и типы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/03-stroki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Строки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/04-oshibki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Ошибки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/05-usloviya-i-optionals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Условия и optionals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/06-cikly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Циклы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/07-funkcii/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Функции
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/08-struktury/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Структуры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ответы
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Ответы
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/01-hello-world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Hello world
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/02-peremennye-i-tipy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Переменные и типы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/03-stroki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Строки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/04-oshibki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Ошибки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/05-usloviya-i-optionals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Условия и optionals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/06-cikly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Циклы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/07-funkcii/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Функции
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/08-struktury/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Структуры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        На пальцах: почему мусор в сервере это боль
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Словарь терминов
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Сервер, который мусорит
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#socketasynceventargs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SocketAsyncEventArgs: коробка, которую создают один раз
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что внутри коробки
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#windows-iocp-overlapped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Windows: IOCP, overlapped и долгий пин
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unix-epoll" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unix: epoll, один поток и короткий пин
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Собираем сервер
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ловушки
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частые ошибки на примерах
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Как проверить, что аллокаций нет
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что в сухом остатке
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="tcp-c">Безаллокационный TCP-сервер на C#: ноль байт из кучи в горячем пути<a class="headerlink" href="#tcp-c" title="Permanent link">&para;</a></h1>
+<p>Давайте я покажу вам два сервера. Первый пишут в туториалах, он занимает десять строк и на локальном ноутбуке показывает миллион запросов в секунду. Второй выглядит страшнее, но под реальной нагрузкой держит p99 latency ровным, пока первый уже тонет в паузах сборщика мусора. Разница между ними не в сети и не в железе, а в том, сколько объектов они рождают в куче.</p>
+<h2 id="_1">На пальцах: почему мусор в сервере это боль<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>Сначала разберемся, почему вообще аллокации в серверном коде так важны. В .NET выделить объект дешево: это сдвиг указателя, о чем мы говорили в уроке про GC. Дорого стоит не выделение, а уборка.</p>
+<p>Объекты живут в <strong>куче</strong>, разбитой на <strong>поколения</strong>. Молодые объекты попадают в gen0. Когда gen0 заполняется, сборщик запускает <strong>сборку</strong>: останавливает все потоки приложения, проходит по живым объектам и переносит их дальше. Эта остановка называется <strong>паузой GC</strong>. Для сервера пауза означает, что запросы в этот момент не обрабатываются.</p>
+<p>Теперь представьте сервер, который на каждый запрос создает десяток объектов. Пятьдесят тысяч запросов в секунду - это полмиллиона объектов. Gen0 переполняется постоянно, сборки идут одна за другой, и в хвостах latency (тот самый p99) появляются пики. Средняя latency может остаться неплохой, но один процент самых медленных запросов будет плохим именно из-за пауз.</p>
+<p>Различают две метрики. <strong>Пропускная способность</strong> (throughput) - сколько запросов в секунду сервер переваривает. <strong>Задержка</strong> (latency) - сколько времени занимает один запрос. Можно иметь высокую пропускную способность и плохую задержку одновременно. Для интерактивных сервисов задержка важнее, и именно ее портят паузы GC.</p>
+<p>Хорошая новость: большая часть этого мусора не нужна. Буфер можно переиспользовать, вместо <code>Task</code> использовать callback, а состояние операции хранить в одном объекте на все соединение. Этим и занимается <code>SocketAsyncEventArgs</code>.</p>
+<h2 id="_2">Словарь терминов<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p><strong>Аллокация</strong> - выделение нового объекта в куче.</p>
+<p><strong>Gen0 / gen1 / gen2</strong> - поколения объектов в куче. Молодые живут в gen0, пережившие сборку переезжают дальше.</p>
+<p><strong>Пауза GC</strong> - момент, когда сборщик останавливает потоки приложения, чтобы прибрать мусор.</p>
+<p><strong>Throughput (пропускная способность)</strong> - сколько работы сервер делает в единицу времени.</p>
+<p><strong>Latency (задержка)</strong> - сколько времени занимает одна операция. p99 - задержка, которую не превысили 99 процентов запросов.</p>
+<p><strong>SAEA (SocketAsyncEventArgs)</strong> - переиспользуемая структура-коробка для одной асинхронной операции над сокетом.</p>
+<p><strong>IOCP (Input/Output Completion Port)</strong> - механизм Windows для асинхронного ввода-вывода. Ядро выполняет операцию и кладет результат в очередь завершений.</p>
+<p><strong>Overlapped</strong> - нативная структура Windows, описывающая асинхронную операцию. <code>PreAllocatedOverlapped</code> - заранее выделенная обертка над ней.</p>
+<p><strong>epoll</strong> - механизм Unix для отслеживания готовности множества сокетов. Аналог IOCP, но работает по-другому: сообщает, когда сокет готов, а не когда операция завершена.</p>
+<p><strong>Edge-triggered (по фронту)</strong> - режим epoll, при котором уведомление приходит один раз при изменении состояния. Надо вычитать все доступные данные, иначе уведомление потеряется.</p>
+<p><strong>Level-triggered (по уровню)</strong> - режим, при котором уведомление повторяется, пока есть данные. Проще, но менее эффективен.</p>
+<p><strong>DMA (Direct Memory Access)</strong> - способ, которым устройство пишет в память напрямую, без участия процессора. Ядро Windows использует его для сетевого ввода-вывода.</p>
+<p><strong>Pinning (пиннинг)</strong> - запрет сборщику перемещать объект. Нужен, пока ядро пишет в буфер.</p>
+<p><strong>ThreadPool</strong> - пул потоков для выполнения задач.</p>
+<p><strong>State machine (машина состояний)</strong> - объект, в который компилятор превращает асинхронный метод с <code>await</code>.</p>
+<p><strong>ExecutionContext</strong> - контекст выполнения: <code>AsyncLocal</code>, <code>Activity</code>, данные логирования. Захват контекста может аллоцировать.</p>
+<p><strong>AsyncLocal</strong> - переменная, значение которой свое для каждого асинхронного потока управления.</p>
+<p><strong>Callback</strong> - функция, которую вызывают по завершении операции.</p>
+<p><strong>Work item</strong> - единица работы, которую ThreadPool ставит в очередь.</p>
+<p><strong>Backlog</strong> - очередь входящих соединений, которые ядро держит до вызова <code>Accept</code>.</p>
+<p><strong>NoDelay</strong> - опция сокета, отключающая алгоритм Нейгла. Полезно для интерактивных протоколов.</p>
+<p><strong>ArrayPool</strong> - пул переиспользуемых массивов.</p>
+<p><strong>POH (Pinned Object Heap)</strong> - куча для объектов, закрепленных навсегда. Позволяет пинить без создания GC-хэндла.</p>
+<p><strong>CancellationToken</strong> - токен для отмены операции.</p>
+<h2 id="_3">Сервер, который мусорит<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p>Вот так пишут почти все:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kt">var</span><span class="w"> </span><span class="n">listener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">TcpListener</span><span class="p">(</span><span class="n">IPAddress</span><span class="p">.</span><span class="n">Any</span><span class="p">,</span><span class="w"> </span><span class="mi">5000</span><span class="p">);</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">listener</span><span class="p">.</span><span class="n">Start</span><span class="p">();</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">{</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="k">using</span><span class="w"> </span><span class="nn">TcpClient</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="n">listener</span><span class="p">.</span><span class="n">AcceptTcpClientAsync</span><span class="p">();</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HandleAsync</span><span class="p">(</span><span class="n">client</span><span class="p">);</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">static</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">Task</span><span class="w"> </span><span class="nf">HandleAsync</span><span class="p">(</span><span class="n">TcpClient</span><span class="w"> </span><span class="n">client</span><span class="p">)</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">{</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">byte</span><span class="p">[</span><span class="mi">4096</span><span class="p">];</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="n">NetworkStream</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">client</span><span class="p">.</span><span class="n">GetStream</span><span class="p">();</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">ReadAsync</span><span class="p">(</span><span class="n">buffer</span><span class="p">);</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">read</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">WriteAsync</span><span class="p">(</span><span class="n">buffer</span><span class="p">.</span><span class="n">AsMemory</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">read</span><span class="p">));</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="p">}</span>
+</code></pre></div>
+<p>Что тут происходит с памятью, когда приходит тысяча соединений. На каждое соединение создается <code>TcpClient</code>, <code>NetworkStream</code> и массив <code>byte[4096]</code>. На каждую операцию чтения-записи - <code>Task</code>, продолжения, регистрации в пуле, плюс state machine асинхронного метода, который компилятор размещает в куче при первом реальном ожидании. Пятьдесят тысяч запросов в секунду превращаются в миллионы маленьких объектов, которые переживают одну сборку gen0 и промоутятся в gen1.</p>
+<p>Посчитаем по объектам, чтобы стало наглядно. Возьмем одно соединение и один цикл чтения-записи:</p>
+<table>
+<thead>
+<tr>
+<th>Что</th>
+<th>Когда создается</th>
+<th>Размер примерно</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TcpClient</code></td>
+<td>на соединение</td>
+<td>40 байт</td>
+</tr>
+<tr>
+<td><code>NetworkStream</code></td>
+<td>на соединение</td>
+<td>40 байт</td>
+</tr>
+<tr>
+<td><code>byte[4096]</code></td>
+<td>на соединение</td>
+<td>4 КБ плюс заголовок</td>
+</tr>
+<tr>
+<td>state machine <code>HandleAsync</code></td>
+<td>при первом <code>await</code></td>
+<td>100+ байт</td>
+</tr>
+<tr>
+<td><code>Task</code> от <code>ReadAsync</code></td>
+<td>на каждое чтение</td>
+<td>70+ байт</td>
+</tr>
+<tr>
+<td><code>Task</code> от <code>WriteAsync</code></td>
+<td>на каждую запись</td>
+<td>70+ байт</td>
+</tr>
+<tr>
+<td>продолжения и регистрации</td>
+<td>на каждое ожидание</td>
+<td>десятки байт</td>
+</tr>
+</tbody>
+</table>
+<p>На соединение с 100 обменами это тысячи объектов. Умножьте на тысячи одновременных соединений - и получите постоянный поток мусора, который GC не успевает разгребать.</p>
+<p>.NET аллоцирует быстро, бампом указателя. Проблема не в скорости аллокации, а в том, что заполненный gen0 рано или поздно останавливает потоки. Для сервера это прямой удар по хвостам latency. И самое обидное - большая часть этого мусора не нужна вообще. Массив можно переиспользовать, <code>Task</code> не создавать, а состояние операции хранить в одном объекте на все соединение.</p>
+<h2 id="socketasynceventargs">SocketAsyncEventArgs: коробка, которую создают один раз<a class="headerlink" href="#socketasynceventargs" title="Permanent link">&para;</a></h2>
+<p><code>SocketAsyncEventArgs</code> (дальше SAEA) - это переиспользуемая коробка под одну асинхронную операцию над сокетом. Не под соединение, а именно под операцию: положили буфер, запустили чтение, получили результат, очистили, запустили следующее. Вся суть в том, что коробка живет долго, а операций через нее проходит бесконечно много.</p>
+<p>API устроен необычно для .NET. Метод не возвращает <code>Task</code>, он возвращает <code>bool</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="p">(</span><span class="n">unsafeSuppressExecutionContextFlow</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">args</span><span class="p">.</span><span class="n">SetBuffer</span><span class="p">(</span><span class="n">buffer</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">buffer</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">args</span><span class="p">.</span><span class="n">Completed</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">OnCompleted</span><span class="p">;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="kt">bool</span><span class="w"> </span><span class="n">pending</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">args</span><span class="p">);</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">pending</span><span class="p">)</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">{</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="c1">// операция завершилась прямо здесь, до возврата</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="n">OnCompleted</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">);</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>true</code> значит операция повисла и callback придет позже. <code>false</code> значит она завершилась синхронно, и callback надо вызвать руками. Забыть про второй случай - классическая ошибка, из-за которой сервер молча перестает обслуживать соединение. Компилятор вам не подскажет, потому что <code>bool</code> он не проверяет.</p>
+<p>Обратите внимание на <code>unsafeSuppressExecutionContextFlow: true</code>. Это не случайный флаг, за ним стоит конкретная строчка в рантайме.</p>
+<h2 id="_4">Что внутри коробки<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>Открываем <code>src/libraries/System.Net.Sockets/src/System/Net/Sockets/SocketAsyncEventArgs.cs</code>. Ключевые поля:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">// SocketAsyncEventArgs.cs:21</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">private</span><span class="w"> </span><span class="n">Memory</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_buffer</span><span class="p">;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c1">// SocketAsyncEventArgs.cs:72</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">_flowExecutionContext</span><span class="p">;</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1">// SocketAsyncEventArgs.cs:87</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">private</span><span class="w"> </span><span class="n">OperationState</span><span class="w"> </span><span class="n">_operating</span><span class="p">;</span><span class="w"> </span><span class="c1">// Configuring = -1, Free = 0, InProgress = 1, Disposed = 2</span>
+</code></pre></div>
+<p>А теперь <code>StartOperationCommon</code>, который вызывается перед каждой нативной операцией:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// SocketAsyncEventArgs.cs:565</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_flowExecutionContext</span><span class="w"> </span><span class="o">||</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p">(</span><span class="n">SocketsTelemetry</span><span class="p">.</span><span class="n">Log</span><span class="p">.</span><span class="n">IsEnabled</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="n">operation</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SocketAsyncOperation</span><span class="p">.</span><span class="n">Connect</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">operation</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SocketAsyncOperation</span><span class="p">.</span><span class="n">Accept</span><span class="p">)))</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">{</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="n">_context</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ExecutionContext</span><span class="p">.</span><span class="n">Capture</span><span class="p">();</span><span class="w"> </span><span class="c1">// SocketAsyncEventArgs.cs:568</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>ExecutionContext.Capture()</code> - это захват всего контекста выполнения на каждой операции. Если у вас есть <code>AsyncLocal</code>, <code>Activity</code> из OpenTelemetry или логирование через контекст, объект не пустой, и захват стоит аллокации. Дефолтный конструктор <code>SocketAsyncEventArgs()</code> выставляет <code>_flowExecutionContext = true</code> (<code>SocketAsyncEventArgs.cs:91</code>), а конструктор с <code>unsafeSuppressExecutionContextFlow: true</code> (<code>SocketAsyncEventArgs.cs:100</code>) его выключает. Рантайм сам этим пользуется: в <code>Socket.Tasks.cs</code> кэшированный <code>AwaitableSocketAsyncEventArgs</code> создается через <code>base(unsafeSuppressExecutionContextFlow: true)</code>, потому что <code>Task</code>/<code>ValueTask</code> выше уже разобрались с контекстом.</p>
+<p>Теперь <code>_operating</code>. Это маленький state machine, который защищает коробку от повторного использования. Вот <code>SetBuffer</code> дергает <code>StartConfiguring</code> (<code>SocketAsyncEventArgs.cs:525</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">StartConfiguring</span><span class="p">()</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="p">{</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">OperationState</span><span class="w"> </span><span class="n">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Interlocked</span><span class="p">.</span><span class="n">CompareExchange</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">_operating</span><span class="p">,</span><span class="w"> </span><span class="n">OperationState</span><span class="p">.</span><span class="n">Configuring</span><span class="p">,</span><span class="w"> </span><span class="n">OperationState</span><span class="p">.</span><span class="n">Free</span><span class="p">);</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">status</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">OperationState</span><span class="p">.</span><span class="n">Free</span><span class="p">)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="n">ThrowForNonFreeStatus</span><span class="p">(</span><span class="n">status</span><span class="p">);</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="p">}</span>
+</code></pre></div>
+<p>Если операция еще в полете, вызов кинет <code>InvalidOperationException</code> с текстом <code>net_socketopinprogress</code>. Один SAEA - одна операция за раз. Это не баг, это защита от гонки, и об этом легко забыть.</p>
+<p>Вот этот state machine на схеме:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>                  SetBuffer / запуск операции
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>        Free (0) ------------------------------&gt; Configuring (-1)
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>           ^                                          |
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>           |                                          | StartOperation
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>           | CompleteCore                             v
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>           |                                     InProgress (1)
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>           |                                          |
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>           +------------------------------------------+
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>                          операция завершена
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        из любого состояния ---&gt; Disposed (2) при Dispose
+</code></pre></div>
+<p>Правила простые: пока не пришел <code>Completed</code>, состояние <code>InProgress</code>, и трогать SAEA нельзя. <code>SetBuffer</code> до старта операции переводит в <code>Configuring</code>. После завершения рантайм возвращает <code>Free</code>, и коробку можно готовить к следующей операции. Если попытаться настроить SAEA, пока он занят, получите исключение, а не тихую порчу данных.</p>
+<h2 id="windows-iocp-overlapped">Windows: IOCP, overlapped и долгий пин<a class="headerlink" href="#windows-iocp-overlapped" title="Permanent link">&para;</a></h2>
+<p>Чтобы понять этот раздел, разберемся с двумя словами. <strong>Overlapped</strong> - это нативная структура Windows, описывающая асинхронную операцию ввода-вывода. Вы заполняете ее буфером и параметрами, отдаете ядру, и ядро само выполняет операцию, пока ваш поток занимается другими делами. <strong>IOCP</strong> (Input/Output Completion Port) - это очередь, в которую ядро кладет уведомление о завершении. Поток берет из очереди готовые операции и обрабатывает их. Смысл в том, что поток не ждет, а разбирает уже завершенное.</p>
+<p>Модель Windows принципиально асинхронная на уровне ядра: вы запускаете <code>WSARecv</code>, и он возвращается сразу, а данные придут позже. Именно поэтому буфер нельзя двигать все время операции, и его приходится пинить.</p>
+<p>На Windows файл <code>SocketAsyncEventArgs.Windows.cs</code>. Каждая коробка в конструкторе создает <code>PreAllocatedOverlapped</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// SocketAsyncEventArgs.Windows.cs, InitializeInternals</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">_preAllocatedOverlapped</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PreAllocatedOverlapped</span><span class="p">.</span><span class="n">UnsafeCreate</span><span class="p">(</span><span class="n">s_completionPortCallback</span><span class="p">,</span><span class="w"> </span><span class="n">_strongThisRef</span><span class="p">,</span><span class="w"> </span><span class="k">null</span><span class="p">);</span>
+</code></pre></div>
+<p>Это нативная структура <code>OVERLAPPED</code> плюс callback, выделенная один раз. В горячем пути <code>WSARecv</code>/<code>WSASend</code> берут ее через <code>AllocateNativeOverlapped</code> и отдают ядру. На операцию - ноль нативных аллокаций.</p>
+<p>Но с буфером все интереснее. Смотрите <code>ProcessIOCPResult</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">bufferToPin</span><span class="p">.</span><span class="n">Equals</span><span class="p">(</span><span class="k">default</span><span class="p">))</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="p">{</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">_singleBufferHandle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">bufferToPin</span><span class="p">.</span><span class="n">Pin</span><span class="p">();</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">}</span>
+</code></pre></div>
+<p>На Windows ядро пишет в буфер асинхронно, через DMA, пока операция висит в IOCP. Значит буфер нельзя двигать сборщиком. Рантайм его пинит на все время операции, <code>MemoryHandle</code> лежит в поле SAEA, а освобождается в <code>CompleteCore</code>. Если вы берете буфер из <code>ArrayPool&lt;byte&gt;.Shared</code>, на каждую операцию создается GC-хэндл и пин. Это не куча, но это работа и давление на GC: закрепленные объекты усложняют компактировку.</p>
+<p>Хитрость: <code>GC.AllocateUninitializedArray&lt;byte&gt;(size, pinned: true)</code> создает массив, закрепленный навсегда, в отдельной куче. <code>Memory&lt;T&gt;.Pin()</code> над таким массивом почти бесплатен. Если число соединений фиксировано, это лучший вариант.</p>
+<p>Еще одна деталь из того же файла - <code>_asyncCompletionOwnership</code>, <code>ulong</code>, через который поток-запускатель и IOCP-callback договариваются, кто владеет завершением. Когда операция завершается синхронно, но хэндл не помечен <code>SkipCompletionPortOnSuccess</code>, рантайм не вызывает callback, а ждет пакет из IOCP. Если callback успел раньше, чем поток закончил настройку, владение переходит запускающему потоку, и операция обрабатывается как синхронная. Это экономит переключение контекста на быстрых accept'ах.</p>
+<h2 id="unix-epoll">Unix: epoll, один поток и короткий пин<a class="headerlink" href="#unix-epoll" title="Permanent link">&para;</a></h2>
+<p><strong>epoll</strong> - это механизм Unix, который решает похожую задачу, но иначе. Вы регистрируете в нем набор сокетов и говорите "разбуди меня, когда на каком-нибудь из них появятся данные". Ядро держит этот набор и сообщает о готовности. Ключевое отличие от IOCP: epoll сообщает о <strong>готовности</strong> ("на этом сокете можно читать"), а не о <strong>завершении операции</strong>. Само чтение вы делаете потом, синхронно, но только когда ядро гарантировало, что данные есть.</p>
+<p>Отсюда и короткий пин на Unix: <code>recv</code> выполняется быстро, данные копируются сразу, и буфер закреплен только на время этого вызова. Никакого длительного DMA, как на Windows.</p>
+<p>На Unix все иначе. Здесь нет IOCP. Есть <code>SocketAsyncEngine</code> (<code>SocketAsyncEngine.Unix.cs</code>), который крутит <code>epoll_wait</code> в цикле. Загляните в нативный шим <code>src/native/libs/System.Native/pal_networking.c</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1">// pal_networking.c:3205</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">evt</span><span class="p">.</span><span class="n">events</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GetEPollEvents</span><span class="p">(</span><span class="n">newEvents</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">int</span><span class="p">)</span><span class="n">EPOLLET</span><span class="p">;</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">evt</span><span class="p">.</span><span class="n">data</span><span class="p">.</span><span class="n">ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="n">data</span><span class="p">;</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="kt">int</span><span class="w"> </span><span class="n">err</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">epoll_ctl</span><span class="p">(</span><span class="n">port</span><span class="p">,</span><span class="w"> </span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">evt</span><span class="p">);</span>
+</code></pre></div>
+<p><code>EPOLLET</code> - edge-triggered режим. После одного уведомления надо вычерпать сокет до <code>EWOULDBLOCK</code>, иначе уведомление потеряется. Поэтому в <code>SocketAsyncContext.Unix.cs</code> есть <code>OperationQueue</code> с <code>_sequenceNumber</code> и состояниями <code>Ready/Waiting/Processing/Stopped</code>. Логика описана прямо в комментарии начиная со строки 749.</p>
+<p>Движок создает поток <code>.NET Sockets</code> (<code>SocketAsyncEngine.Unix.cs:200</code>). Сколько их? Смотрите <code>GetEngineCount</code> (<code>SocketAsyncEngine.Unix.cs:49</code>): на x64 рантайм считает один движок на 30 ядер, на ARM - на 12. На обычной 16-ядерной машине это ровно один поток, который читает epoll и раскидывает события. Переопределяется переменной окружения <code>DOTNET_SYSTEM_NET_SOCKETS_THREAD_COUNT</code>.</p>
+<p>События не обрабатываются в потоке epoll. Рантайм пакует их и кидает в ThreadPool:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1">// SocketAsyncEngine.Unix.cs:301-308</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">count</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">MaxTreeSize</span><span class="p">)</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="p">{</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">treeSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Math</span><span class="p">.</span><span class="n">Min</span><span class="p">(</span><span class="n">MaxTreeSize</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">i</span><span class="p">);</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="n">SocketIOEvent</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">asyncEvents</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="n">LinkChildren</span><span class="p">(</span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="n">SocketIOEvent</span><span class="o">&gt;</span><span class="p">(</span><span class="n">asyncEvents</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">treeSize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">));</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="n">ThreadPool</span><span class="p">.</span><span class="n">UnsafeQueueUserWorkItem</span><span class="p">(</span><span class="n">root</span><span class="p">,</span><span class="w"> </span><span class="n">preferLocal</span><span class="p">:</span><span class="w"> </span><span class="k">false</span><span class="p">);</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="p">}</span>
+</code></pre></div>
+<p>Зачем тут бинарное дерево? Чтобы на пачку из 1024 событий поставить в ThreadPool не 1024 work item, а около 32. Корень дерева при выполнении распаковывает детей в локальные очереди. <code>SocketIOEvent</code> берутся из пула <code>_eventPool</code> (<code>ConcurrentQueue&lt;SocketIOEvent&gt;</code>), так что на каждое событие аллокации нет.</p>
+<p>А буфер на Unix пинится ровно на время системного вызова. Смотрите <code>SocketPal.Unix.cs</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1">// SocketPal.Unix.cs, TryCompleteReceive</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="k">fixed</span><span class="w"> </span><span class="p">(</span><span class="kt">byte</span><span class="o">*</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">MemoryMarshal</span><span class="p">.</span><span class="n">GetReference</span><span class="p">(</span><span class="n">buffer</span><span class="p">))</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="p">{</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="n">errno</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Interop</span><span class="p">.</span><span class="n">Sys</span><span class="p">.</span><span class="n">Recv</span><span class="p">(...);</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="p">}</span>
+</code></pre></div>
+<p>Ядро копирует данные синхронно во время <code>recv</code>, потому что операция выполняется только когда epoll сказал, что сокет готов. Никакого длительного пина через асинхронный DMA тут нет. Для аллокаций и для GC это огромное преимущество Unix-пути.</p>
+<p>Сводка различий:</p>
+<table>
+<thead>
+<tr>
+<th>Что</th>
+<th>Windows (IOCP)</th>
+<th>Unix (epoll)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Кто ждет готовность</td>
+<td>ядро, IOCP</td>
+<td>поток <code>.NET Sockets</code>, <code>epoll_wait</code></td>
+</tr>
+<tr>
+<td>Буфер закреплен</td>
+<td>на всю операцию</td>
+<td>только внутри <code>recv</code>/<code>send</code></td>
+</tr>
+<tr>
+<td>Нативная структура на операцию</td>
+<td><code>PreAllocatedOverlapped</code>, одна на SAEA</td>
+<td>нет</td>
+</tr>
+<tr>
+<td>Диспетчеризация завершения</td>
+<td>IOCP-порт</td>
+<td>ThreadPool, батчами по дереву</td>
+</tr>
+<tr>
+<td>Захват <code>ExecutionContext</code></td>
+<td>на каждой операции</td>
+<td>на каждой операции</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">Собираем сервер<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p>Идея простая: на каждое соединение один объект <code>Connection</code>, внутри два SAEA (чтение и запись) и один буфер из пула. Ни одного <code>await</code> в горячем пути.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">using</span><span class="w"> </span><span class="nn">System</span><span class="p">;</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="k">using</span><span class="w"> </span><span class="nn">System.Buffers</span><span class="p">;</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">using</span><span class="w"> </span><span class="nn">System.Net</span><span class="p">;</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="k">using</span><span class="w"> </span><span class="nn">System.Net.Sockets</span><span class="p">;</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="k">sealed</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">EchoServer</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="p">{</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">BufferSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">16</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">;</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Socket</span><span class="w"> </span><span class="n">_listener</span><span class="p">;</span>
+<a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">_acceptArgs</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">        </span><span class="k">new</span><span class="w"> </span><span class="nf">SocketAsyncEventArgs</span><span class="p">(</span><span class="n">unsafeSuppressExecutionContextFlow</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>
+<a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">EchoServer</span><span class="p">(</span><span class="n">IPEndPoint</span><span class="w"> </span><span class="n">endPoint</span><span class="p">)</span>
+<a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="w">        </span><span class="n">_listener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Socket</span><span class="p">(</span><span class="n">endPoint</span><span class="p">.</span><span class="n">AddressFamily</span><span class="p">,</span><span class="w"> </span><span class="n">SocketType</span><span class="p">.</span><span class="n">Stream</span><span class="p">,</span><span class="w"> </span><span class="n">ProtocolType</span><span class="p">.</span><span class="n">Tcp</span><span class="p">);</span>
+<a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="w">        </span><span class="n">_listener</span><span class="p">.</span><span class="n">SetSocketOption</span><span class="p">(</span><span class="n">SocketOptionLevel</span><span class="p">.</span><span class="n">Socket</span><span class="p">,</span><span class="w"> </span><span class="n">SocketOptionName</span><span class="p">.</span><span class="n">ReuseAddress</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="w">        </span><span class="n">_listener</span><span class="p">.</span><span class="n">Bind</span><span class="p">(</span><span class="n">endPoint</span><span class="p">);</span>
+<a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="w">        </span><span class="n">_listener</span><span class="p">.</span><span class="n">Listen</span><span class="p">(</span><span class="mi">512</span><span class="p">);</span>
+<a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>
+<a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Start</span><span class="p">()</span>
+<a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-11-24" name="__codelineno-11-24" href="#__codelineno-11-24"></a><span class="w">        </span><span class="n">_acceptArgs</span><span class="p">.</span><span class="n">Completed</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">OnAccept</span><span class="p">;</span>
+<a id="__codelineno-11-25" name="__codelineno-11-25" href="#__codelineno-11-25"></a><span class="w">        </span><span class="n">StartAccept</span><span class="p">();</span>
+<a id="__codelineno-11-26" name="__codelineno-11-26" href="#__codelineno-11-26"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-11-27" name="__codelineno-11-27" href="#__codelineno-11-27"></a>
+<a id="__codelineno-11-28" name="__codelineno-11-28" href="#__codelineno-11-28"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">StartAccept</span><span class="p">()</span>
+<a id="__codelineno-11-29" name="__codelineno-11-29" href="#__codelineno-11-29"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a><span class="w">        </span><span class="n">_acceptArgs</span><span class="p">.</span><span class="n">AcceptSocket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+<a id="__codelineno-11-31" name="__codelineno-11-31" href="#__codelineno-11-31"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_listener</span><span class="p">.</span><span class="n">AcceptAsync</span><span class="p">(</span><span class="n">_acceptArgs</span><span class="p">))</span>
+<a id="__codelineno-11-32" name="__codelineno-11-32" href="#__codelineno-11-32"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-11-33" name="__codelineno-11-33" href="#__codelineno-11-33"></a><span class="w">            </span><span class="n">OnAccept</span><span class="p">(</span><span class="n">_listener</span><span class="p">,</span><span class="w"> </span><span class="n">_acceptArgs</span><span class="p">);</span>
+<a id="__codelineno-11-34" name="__codelineno-11-34" href="#__codelineno-11-34"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-11-35" name="__codelineno-11-35" href="#__codelineno-11-35"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-11-36" name="__codelineno-11-36" href="#__codelineno-11-36"></a>
+<a id="__codelineno-11-37" name="__codelineno-11-37" href="#__codelineno-11-37"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnAccept</span><span class="p">(</span><span class="kt">object?</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
+<a id="__codelineno-11-38" name="__codelineno-11-38" href="#__codelineno-11-38"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-11-39" name="__codelineno-11-39" href="#__codelineno-11-39"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">SocketError</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">SocketError</span><span class="p">.</span><span class="n">Success</span><span class="p">)</span>
+<a id="__codelineno-11-40" name="__codelineno-11-40" href="#__codelineno-11-40"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-11-41" name="__codelineno-11-41" href="#__codelineno-11-41"></a><span class="w">            </span><span class="n">Socket</span><span class="w"> </span><span class="n">socket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">AcceptSocket</span><span class="o">!</span><span class="p">;</span>
+<a id="__codelineno-11-42" name="__codelineno-11-42" href="#__codelineno-11-42"></a><span class="w">            </span><span class="n">socket</span><span class="p">.</span><span class="n">NoDelay</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<a id="__codelineno-11-43" name="__codelineno-11-43" href="#__codelineno-11-43"></a><span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Connection</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="n">BufferSize</span><span class="p">);</span>
+<a id="__codelineno-11-44" name="__codelineno-11-44" href="#__codelineno-11-44"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-11-45" name="__codelineno-11-45" href="#__codelineno-11-45"></a>
+<a id="__codelineno-11-46" name="__codelineno-11-46" href="#__codelineno-11-46"></a><span class="w">        </span><span class="n">StartAccept</span><span class="p">();</span>
+<a id="__codelineno-11-47" name="__codelineno-11-47" href="#__codelineno-11-47"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-11-48" name="__codelineno-11-48" href="#__codelineno-11-48"></a><span class="p">}</span>
+</code></pre></div>
+<p>Теперь само соединение. <code>SetBuffer</code> вызывается либо до старта, либо после завершения, когда SAEA снова <code>Free</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">sealed</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">Connection</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p">{</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Socket</span><span class="w"> </span><span class="n">_socket</span><span class="p">;</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">_buffer</span><span class="p">;</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">_recv</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">        </span><span class="k">new</span><span class="w"> </span><span class="nf">SocketAsyncEventArgs</span><span class="p">(</span><span class="n">unsafeSuppressExecutionContextFlow</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">_send</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">        </span><span class="k">new</span><span class="w"> </span><span class="nf">SocketAsyncEventArgs</span><span class="p">(</span><span class="n">unsafeSuppressExecutionContextFlow</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">_sendOffset</span><span class="p">;</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">_sendCount</span><span class="p">;</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="nf">Connection</span><span class="p">(</span><span class="n">Socket</span><span class="w"> </span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">bufferSize</span><span class="p">)</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="w">        </span><span class="n">_socket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="p">;</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="w">        </span><span class="n">_buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ArrayPool</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Shared</span><span class="p">.</span><span class="n">Rent</span><span class="p">(</span><span class="n">bufferSize</span><span class="p">);</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a><span class="w">        </span><span class="n">_recv</span><span class="p">.</span><span class="n">UserToken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">;</span>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="w">        </span><span class="n">_recv</span><span class="p">.</span><span class="n">SetBuffer</span><span class="p">(</span><span class="n">_buffer</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">_buffer</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="w">        </span><span class="n">_recv</span><span class="p">.</span><span class="n">Completed</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">OnReceive</span><span class="p">;</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a><span class="w">        </span><span class="n">_send</span><span class="p">.</span><span class="n">UserToken</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">this</span><span class="p">;</span>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a><span class="w">        </span><span class="n">_send</span><span class="p">.</span><span class="n">Completed</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">OnSend</span><span class="p">;</span>
+<a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a>
+<a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a><span class="w">        </span><span class="n">StartReceive</span><span class="p">();</span>
+<a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a>
+<a id="__codelineno-12-28" name="__codelineno-12-28" href="#__codelineno-12-28"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">StartReceive</span><span class="p">()</span>
+<a id="__codelineno-12-29" name="__codelineno-12-29" href="#__codelineno-12-29"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-12-30" name="__codelineno-12-30" href="#__codelineno-12-30"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">_recv</span><span class="p">))</span>
+<a id="__codelineno-12-31" name="__codelineno-12-31" href="#__codelineno-12-31"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-12-32" name="__codelineno-12-32" href="#__codelineno-12-32"></a><span class="w">            </span><span class="n">OnReceive</span><span class="p">(</span><span class="n">_socket</span><span class="p">,</span><span class="w"> </span><span class="n">_recv</span><span class="p">);</span>
+<a id="__codelineno-12-33" name="__codelineno-12-33" href="#__codelineno-12-33"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-12-34" name="__codelineno-12-34" href="#__codelineno-12-34"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-12-35" name="__codelineno-12-35" href="#__codelineno-12-35"></a>
+<a id="__codelineno-12-36" name="__codelineno-12-36" href="#__codelineno-12-36"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnReceive</span><span class="p">(</span><span class="kt">object?</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
+<a id="__codelineno-12-37" name="__codelineno-12-37" href="#__codelineno-12-37"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-12-38" name="__codelineno-12-38" href="#__codelineno-12-38"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">SocketError</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">SocketError</span><span class="p">.</span><span class="n">Success</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">BytesTransferred</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-12-39" name="__codelineno-12-39" href="#__codelineno-12-39"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-12-40" name="__codelineno-12-40" href="#__codelineno-12-40"></a><span class="w">            </span><span class="n">Close</span><span class="p">();</span>
+<a id="__codelineno-12-41" name="__codelineno-12-41" href="#__codelineno-12-41"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<a id="__codelineno-12-42" name="__codelineno-12-42" href="#__codelineno-12-42"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-12-43" name="__codelineno-12-43" href="#__codelineno-12-43"></a>
+<a id="__codelineno-12-44" name="__codelineno-12-44" href="#__codelineno-12-44"></a><span class="w">        </span><span class="n">_sendOffset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-12-45" name="__codelineno-12-45" href="#__codelineno-12-45"></a><span class="w">        </span><span class="n">_sendCount</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">BytesTransferred</span><span class="p">;</span>
+<a id="__codelineno-12-46" name="__codelineno-12-46" href="#__codelineno-12-46"></a><span class="w">        </span><span class="n">StartSend</span><span class="p">();</span>
+<a id="__codelineno-12-47" name="__codelineno-12-47" href="#__codelineno-12-47"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-12-48" name="__codelineno-12-48" href="#__codelineno-12-48"></a>
+<a id="__codelineno-12-49" name="__codelineno-12-49" href="#__codelineno-12-49"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">StartSend</span><span class="p">()</span>
+<a id="__codelineno-12-50" name="__codelineno-12-50" href="#__codelineno-12-50"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-12-51" name="__codelineno-12-51" href="#__codelineno-12-51"></a><span class="w">        </span><span class="n">_send</span><span class="p">.</span><span class="n">SetBuffer</span><span class="p">(</span><span class="n">_buffer</span><span class="p">,</span><span class="w"> </span><span class="n">_sendOffset</span><span class="p">,</span><span class="w"> </span><span class="n">_sendCount</span><span class="p">);</span>
+<a id="__codelineno-12-52" name="__codelineno-12-52" href="#__codelineno-12-52"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_socket</span><span class="p">.</span><span class="n">SendAsync</span><span class="p">(</span><span class="n">_send</span><span class="p">))</span>
+<a id="__codelineno-12-53" name="__codelineno-12-53" href="#__codelineno-12-53"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-12-54" name="__codelineno-12-54" href="#__codelineno-12-54"></a><span class="w">            </span><span class="n">OnSend</span><span class="p">(</span><span class="n">_socket</span><span class="p">,</span><span class="w"> </span><span class="n">_send</span><span class="p">);</span>
+<a id="__codelineno-12-55" name="__codelineno-12-55" href="#__codelineno-12-55"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-12-56" name="__codelineno-12-56" href="#__codelineno-12-56"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-12-57" name="__codelineno-12-57" href="#__codelineno-12-57"></a>
+<a id="__codelineno-12-58" name="__codelineno-12-58" href="#__codelineno-12-58"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnSend</span><span class="p">(</span><span class="kt">object?</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
+<a id="__codelineno-12-59" name="__codelineno-12-59" href="#__codelineno-12-59"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-12-60" name="__codelineno-12-60" href="#__codelineno-12-60"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">SocketError</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">SocketError</span><span class="p">.</span><span class="n">Success</span><span class="p">)</span>
+<a id="__codelineno-12-61" name="__codelineno-12-61" href="#__codelineno-12-61"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-12-62" name="__codelineno-12-62" href="#__codelineno-12-62"></a><span class="w">            </span><span class="n">Close</span><span class="p">();</span>
+<a id="__codelineno-12-63" name="__codelineno-12-63" href="#__codelineno-12-63"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<a id="__codelineno-12-64" name="__codelineno-12-64" href="#__codelineno-12-64"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-12-65" name="__codelineno-12-65" href="#__codelineno-12-65"></a>
+<a id="__codelineno-12-66" name="__codelineno-12-66" href="#__codelineno-12-66"></a><span class="w">        </span><span class="n">_sendOffset</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">BytesTransferred</span><span class="p">;</span>
+<a id="__codelineno-12-67" name="__codelineno-12-67" href="#__codelineno-12-67"></a><span class="w">        </span><span class="n">_sendCount</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">BytesTransferred</span><span class="p">;</span>
+<a id="__codelineno-12-68" name="__codelineno-12-68" href="#__codelineno-12-68"></a>
+<a id="__codelineno-12-69" name="__codelineno-12-69" href="#__codelineno-12-69"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_sendCount</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-12-70" name="__codelineno-12-70" href="#__codelineno-12-70"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-12-71" name="__codelineno-12-71" href="#__codelineno-12-71"></a><span class="w">            </span><span class="n">StartSend</span><span class="p">();</span>
+<a id="__codelineno-12-72" name="__codelineno-12-72" href="#__codelineno-12-72"></a><span class="w">            </span><span class="k">return</span><span class="p">;</span>
+<a id="__codelineno-12-73" name="__codelineno-12-73" href="#__codelineno-12-73"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-12-74" name="__codelineno-12-74" href="#__codelineno-12-74"></a>
+<a id="__codelineno-12-75" name="__codelineno-12-75" href="#__codelineno-12-75"></a><span class="w">        </span><span class="n">StartReceive</span><span class="p">();</span>
+<a id="__codelineno-12-76" name="__codelineno-12-76" href="#__codelineno-12-76"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-12-77" name="__codelineno-12-77" href="#__codelineno-12-77"></a>
+<a id="__codelineno-12-78" name="__codelineno-12-78" href="#__codelineno-12-78"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Close</span><span class="p">()</span>
+<a id="__codelineno-12-79" name="__codelineno-12-79" href="#__codelineno-12-79"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-12-80" name="__codelineno-12-80" href="#__codelineno-12-80"></a><span class="w">        </span><span class="n">ArrayPool</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Shared</span><span class="p">.</span><span class="n">Return</span><span class="p">(</span><span class="n">_buffer</span><span class="p">);</span>
+<a id="__codelineno-12-81" name="__codelineno-12-81" href="#__codelineno-12-81"></a><span class="w">        </span><span class="n">_socket</span><span class="p">.</span><span class="n">Dispose</span><span class="p">();</span>
+<a id="__codelineno-12-82" name="__codelineno-12-82" href="#__codelineno-12-82"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-12-83" name="__codelineno-12-83" href="#__codelineno-12-83"></a><span class="p">}</span>
+</code></pre></div>
+<p>Считаем аллокации на соединение:</p>
+<ul>
+<li><code>Socket</code> для принятого соединения создает сам рантайм в <code>GetOrCreateAcceptSocket</code> (<code>Socket.cs:2862</code>). Это единственная аллокация, которую обойти нельзя: у соединения должно быть управляемое состояние.</li>
+<li><code>byte[]</code> берется из <code>ArrayPool&lt;byte&gt;.Shared</code>. Первый рент аллоцирует массив, дальше он переиспользуется между соединениями.</li>
+<li>Два <code>SocketAsyncEventArgs</code> и объект <code>Connection</code> - по одному на соединение.</li>
+<li>На каждую операцию чтения или записи: ноль управляемых аллокаций.</li>
+</ul>
+<p>Про <code>AcceptSocket</code>. В <code>Socket.cs:2862</code> рантайм делает <code>GetOrCreateAcceptSocket(e.AcceptSocket, ...)</code>. Если не обнулить <code>e.AcceptSocket</code> перед следующим <code>AcceptAsync</code>, он попробует переиспользовать уже отданный вам сокет. Поэтому в <code>StartAccept</code> стоит <code>_acceptArgs.AcceptSocket = null</code>. На Unix, кстати, рантайм все равно создает временный <code>Socket</code> под капотом и копирует состояние в ваш (<code>FinishOperationAccept</code> в <code>SocketAsyncEventArgs.Unix.cs</code>), так что сэкономить там не выйдет.</p>
+<h2 id="_6">Ловушки<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p><strong>CancellationToken в горячем пути аллоцирует.</strong> В <code>SocketAsyncContext.Unix.cs:892</code> и в Windows-варианте регистрация делается только если <code>cancellationToken.CanBeCanceled</code>. <code>CancellationToken.None</code> не может быть отменен, регистрации нет. Как только вы передаете отменяемый токен на каждую операцию, рантайм делает <code>UnsafeRegister</code>, а это структура регистрации и потенциальная аллокация. Не тащите токен туда, где он не нужен.</p>
+<p><strong><code>await socket.ReceiveAsync(memory)</code> не равен нулевым аллокациям.</strong> Рантайм держит кэшированный <code>AwaitableSocketAsyncEventArgs</code> на сокет (<code>Socket.Tasks.cs:19-21</code>), и <code>ValueTask</code> - структура. Но если операция реально повиснет, компилятор разместит state machine вашего асинхронного метода в куче. Если метод завершается синхронно, аллокации нет. Для гарантированного нуля в горячем пути - callback'и на SAEA, а не <code>await</code>.</p>
+<p><strong>Один кэшированный SAEA на сокет - это один опережающий receive.</strong> Перегрузки в <code>Socket.Tasks.cs</code> берут SAEA через <code>Interlocked.Exchange(ref _singleBufferReceiveEventArgs, null)</code>. Если запустить второй <code>ReceiveAsync(Memory)</code> на том же сокете, пока первый висит, кэш пуст, и рантайм создаст второй SAEA. Для пайплайна с несколькими одновременными операциями на сокет используйте явный пул SAEA, а не <code>ValueTask</code>-перегрузки.</p>
+<p><strong>Буфер нельзя возвращать в пул раньше завершения.</strong> На Windows ядро пишет в него асинхронно. Вернете в <code>ArrayPool</code> в момент старта операции - получите порчу данных, которые уже отданы другому соединению. Возвращайте только в колбэке завершения.</p>
+<p><strong><code>SetBuffer</code> во время операции кинет исключение.</strong> Один SAEA - одна операция за раз. Не переиспользуйте SAEA, пока не пришел <code>Completed</code>.</p>
+<p><strong><code>SocketError.IOPending</code> не приходит наружу как исключение.</strong> <code>AcceptAsync</code>/<code>ReceiveAsync</code>/<code>SendAsync</code> возвращают <code>bool</code>. Забыть про синхронный случай и не вызвать callback - классическая ошибка, сервер просто перестанет обслуживать соединение.</p>
+<h2 id="_7">Частые ошибки на примерах<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>Соберу главные грабли в виде "было / стало".</p>
+<p><strong>Забыли синхронный случай.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1">// было: если ReceiveAsync вернул false, callback не придет, сервер встал</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">_socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">_recv</span><span class="p">);</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c1">// стало: проверяем bool и вызываем callback руками</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">_recv</span><span class="p">))</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="p">{</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span><span class="n">OnReceive</span><span class="p">(</span><span class="n">_socket</span><span class="p">,</span><span class="w"> </span><span class="n">_recv</span><span class="p">);</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="p">}</span>
+</code></pre></div>
+<p>Это ошибка номер один, потому что компилятор не подсказывает: <code>bool</code> можно проигнорировать без предупреждения.</p>
+<p><strong>Вернули буфер в пул до завершения операции.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1">// было: ядро еще пишет в буфер, а он уже отдан другому соединению</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="n">_socket</span><span class="p">.</span><span class="n">SendAsync</span><span class="p">(</span><span class="n">_send</span><span class="p">);</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">ArrayPool</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Shared</span><span class="p">.</span><span class="n">Return</span><span class="p">(</span><span class="n">_buffer</span><span class="p">);</span><span class="w"> </span><span class="c1">// порча данных</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="c1">// стало: возвращаем только в колбэке завершения</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnSend</span><span class="p">(</span><span class="kt">object?</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="p">{</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">    </span><span class="c1">// ...</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_sendCount</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="w">        </span><span class="n">ArrayPool</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="p">.</span><span class="n">Shared</span><span class="p">.</span><span class="n">Return</span><span class="p">(</span><span class="n">_buffer</span><span class="p">);</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="w">        </span><span class="n">_socket</span><span class="p">.</span><span class="n">Dispose</span><span class="p">();</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Настройка SAEA во время операции.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1">// было: InvalidOperationException, коробка занята</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">_socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">_recv</span><span class="p">);</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">_recv</span><span class="p">.</span><span class="n">SetBuffer</span><span class="p">(</span><span class="n">other</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span><span class="w"> </span><span class="c1">// падение</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="c1">// стало: настраиваем только когда коробка Free</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">_recv</span><span class="p">))</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">    </span><span class="n">OnReceive</span><span class="p">(</span><span class="n">_socket</span><span class="p">,</span><span class="w"> </span><span class="n">_recv</span><span class="p">);</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="c1">// менять буфер можно только после Completed</span>
+</code></pre></div>
+<p><strong>Переиспользование AcceptSocket без сброса.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1">// было: рантайм попробует переиспользовать уже отданный сокет</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">StartAccept</span><span class="p">()</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="p">{</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span><span class="n">_listener</span><span class="p">.</span><span class="n">AcceptAsync</span><span class="p">(</span><span class="n">_acceptArgs</span><span class="p">);</span><span class="w"> </span><span class="c1">// AcceptSocket не сброшен</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="p">}</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1">// стало: обнуляем перед следующим accept</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">StartAccept</span><span class="p">()</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="p">{</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">    </span><span class="n">_acceptArgs</span><span class="p">.</span><span class="n">AcceptSocket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_listener</span><span class="p">.</span><span class="n">AcceptAsync</span><span class="p">(</span><span class="n">_acceptArgs</span><span class="p">))</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="w">        </span><span class="n">OnAccept</span><span class="p">(</span><span class="n">_listener</span><span class="p">,</span><span class="w"> </span><span class="n">_acceptArgs</span><span class="p">);</span>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Отменяемый токен в горячем пути.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1">// было: на каждую операцию регистрация и аллокация</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="k">await</span><span class="w"> </span><span class="n">socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">memory</span><span class="p">,</span><span class="w"> </span><span class="n">cancellationToken</span><span class="p">);</span><span class="w"> </span><span class="c1">// token CanBeCanceled</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1">// стало: либо CancellationToken.None, либо вообще callback API</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">_recv</span><span class="p">))</span><span class="w"> </span><span class="c1">// без токена</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span><span class="n">OnReceive</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="n">_recv</span><span class="p">);</span>
+</code></pre></div>
+<p>Если отмена нужна, держите один токен на соединение и не создавайте новый на каждую операцию.</p>
+<p><strong><code>await</code> там, где нужен гарантированный ноль.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1">// было: при реальном ожидании создается state machine в куче</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="k">true</span><span class="p">)</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="p">{</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="n">socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">memory</span><span class="p">);</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">n</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">break</span><span class="p">;</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">socket</span><span class="p">.</span><span class="n">SendAsync</span><span class="p">(</span><span class="n">memory</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">));</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="p">}</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="c1">// стало: callback-цикл на SAEA, ноль управляемых аллокаций на операцию</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">OnReceive</span><span class="p">(</span><span class="kt">object?</span><span class="w"> </span><span class="n">sender</span><span class="p">,</span><span class="w"> </span><span class="n">SocketAsyncEventArgs</span><span class="w"> </span><span class="n">e</span><span class="p">)</span>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="p">{</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="w">    </span><span class="c1">// ... обработали, запустили следующую операцию ...</span>
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">_socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">_recv</span><span class="p">))</span>
+<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="w">        </span><span class="n">OnReceive</span><span class="p">(</span><span class="n">_socket</span><span class="p">,</span><span class="w"> </span><span class="n">_recv</span><span class="p">);</span>
+<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>await</code>-версия вполне нормальна для обычного кода: <code>ValueTask</code> и кэшированный SAEA сильно снижают аллокации. Но если вы целитесь ровно в ноль на горячем пути, callback надежнее.</p>
+<h2 id="_8">Как проверить, что аллокаций нет<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p>Не верьте на слово, замеряйте.</p>
+<p>Простейший способ - счетчик аллокаций текущего потока:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kt">long</span><span class="w"> </span><span class="n">before</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GC</span><span class="p">.</span><span class="n">GetAllocatedBytesForCurrentThread</span><span class="p">();</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="c1">// ... прогон нагрузки ...</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="kt">long</span><span class="w"> </span><span class="n">after</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GC</span><span class="p">.</span><span class="n">GetAllocatedBytesForCurrentThread</span><span class="p">();</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">$"allocated: {after - before} bytes"</span><span class="p">);</span>
+</code></pre></div>
+<p>Живые метрики:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">dotnet-counters</span> <span class="n">monitor</span> <span class="p">-</span><span class="n">-counters</span> <span class="n">System</span><span class="p">.</span><span class="n">Runtime</span> <span class="p">-</span><span class="n">-process-id</span> <span class="p">&lt;</span><span class="n">PID</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>Смотрите <code>alloc-rate</code> и <code>gen-0-gc-count</code>. На безаллокационном сервере <code>alloc-rate</code> почти замирает после прогрева, а <code>gen-0-gc-count</code> перестает расти.</p>
+<p>Для точного профиля с точками аллокаций - <code>dotnet-trace</code> или PerfView. Для микробенчмарков - BenchmarkDotNet с <code>[MemoryDiagnoser]</code>.</p>
+<p>Полезные переменные окружения, которые меняют поведение сетевого движка:</p>
+<ul>
+<li><code>DOTNET_SYSTEM_NET_SOCKETS_INLINE_COMPLETIONS=1</code> - выполнять продолжения прямо в потоке epoll, без ThreadPool. Меньше переключений контекста и latency, но если колбэк блокирует, встанет весь движок.</li>
+<li><code>DOTNET_SYSTEM_NET_SOCKETS_THREAD_COUNT=&lt;N&gt;</code> - число потоков-движков. По умолчанию на x64 один движок на 30 ядер.</li>
+</ul>
+<h2 id="_9">Что в сухом остатке<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h2>
+<p><code>SocketAsyncEventArgs</code> - это коробка состояния, которую создают один раз и гоняют по кругу. <code>unsafeSuppressExecutionContextFlow: true</code> убирает <code>ExecutionContext.Capture()</code> из каждой операции. Буферы берутся из <code>ArrayPool&lt;byte&gt;</code>, а для фиксированного набора - через <code>GC.AllocateUninitializedArray&lt;byte&gt;(size, pinned: true)</code>, чтобы не пинить на Windows каждую операцию. Callback на <code>Completed</code> вместо <code>await</code> в горячем пути дает гарантированный ноль управляемых аллокаций на операцию. И помните про разницу: на Unix рантайм пинит буфер только внутри <code>recv</code>/<code>send</code>, на Windows - на всю операцию.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Нижний колонтитул" >
+        
+          
+          <a href="../04-struktura-nativeaot/" class="md-footer__link md-footer__link--prev" aria-label="Назад: 4. Структура NativeAOT">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Назад
+              </span>
+              <div class="md-ellipsis">
+                4. Структура NativeAOT
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../06-system-io-pipelines/" class="md-footer__link md-footer__link--next" aria-label="Вперед: 6. System.IO.Pipelines">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Вперед
+              </span>
+              <div class="md-ellipsis">
+                6. System.IO.Pipelines
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

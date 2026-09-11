@@ -1,0 +1,2529 @@
+
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Бесплатные курсы по системному программированию — C# Low Level + Zero Allocations и Zig с нуля">
+      
+      
+      
+        <link rel="canonical" href="https://larkliy.github.io/movtobase/csharp/02-span-i-memory/">
+      
+      
+        <link rel="prev" href="../01-gc-iznutri/">
+      
+      
+        <link rel="next" href="../03-unsafe-i-memorymarshal/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>2. Span и Memory - movtobase</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <meta name="robots" content="noindex, nofollow">
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#span-memory" class="md-skip">
+          Перейти к содержанию
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Верхний колонтитул">
+    <a href="../.." title="movtobase" class="md-header__button md-logo" aria-label="movtobase" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            movtobase
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              2. Span и Memory
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple"  aria-label="Светлая тема"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Светлая тема" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple"  aria-label="Тёмная тема"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Тёмная тема" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Поиск" placeholder="Поиск" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Поиск">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Очистить" aria-label="Очистить" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Инициализация поиска
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Навигация" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="movtobase" class="md-nav__button md-logo" aria-label="movtobase" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    movtobase
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Главная
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C# Low Level + Zero Allocations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C# Low Level + Zero Allocations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор курса
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-gc-iznutri/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. GC изнутри
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Span и Memory
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Span и Memory
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        На пальцах: стек, куча и цена аллокации
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Словарь терминов
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Две структуры, одна идея
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#span" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Как Span превращается в адрес
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#span-heap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Почему Span нельзя протащить в heap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory: квитанция вместо окна
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#span-memory_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Span или Memory: как выбрать
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#readonlyspan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Строка как ReadOnlySpan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memorymanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MemoryManager: память, которую придумали вы
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что при этом делает процессор
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ловушки, на которые легко наступить
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частые ошибки на примерах
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Практика: парсим без аллокаций
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что в итоге
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-unsafe-i-memorymarshal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Unsafe и MemoryMarshal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-struktura-nativeaot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Структура NativeAOT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-bezallokacionnyy-tcp-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. TCP-сервер без аллокаций
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-system-io-pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. System.IO.Pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig 0.17.0-dev
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Zig 0.17.0-dev
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Обзор курса
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Уроки
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Уроки
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/01-hello-world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Hello world
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/02-peremennye-i-tipy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Переменные и типы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/03-stroki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Строки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/04-oshibki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Ошибки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/05-usloviya-i-optionals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Условия и optionals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/06-cikly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Циклы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/07-funkcii/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Функции
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/lessons/08-struktury/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Структуры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Задачи
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Задачи
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/01-hello-world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Hello world
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/02-peremennye-i-tipy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Переменные и типы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/03-stroki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Строки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/04-oshibki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Ошибки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/05-usloviya-i-optionals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Условия и optionals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/06-cikly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Циклы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/07-funkcii/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Функции
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/tasks/08-struktury/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Структуры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ответы
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Ответы
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/01-hello-world/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Hello world
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/02-peremennye-i-tipy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Переменные и типы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/03-stroki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Строки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/04-oshibki/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Ошибки
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/05-usloviya-i-optionals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Условия и optionals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/06-cikly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Циклы
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/07-funkcii/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Функции
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig/answers/08-struktury/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Структуры
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Содержание">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Содержание
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        На пальцах: стек, куча и цена аллокации
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Словарь терминов
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Две структуры, одна идея
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#span" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Как Span превращается в адрес
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#span-heap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Почему Span нельзя протащить в heap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory: квитанция вместо окна
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#span-memory_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Span или Memory: как выбрать
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#readonlyspan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Строка как ReadOnlySpan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memorymanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MemoryManager: память, которую придумали вы
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что при этом делает процессор
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ловушки, на которые легко наступить
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Частые ошибки на примерах
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Практика: парсим без аллокаций
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Что в итоге
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="span-memory">Span<T> и Memory<T>: смотрим на память, не копируя ее<a class="headerlink" href="#span-memory" title="Permanent link">&para;</a></h1>
+<p>Представьте, что вы пишете парсер CSV. Строка на входе - это <code>string</code>, 2 килобайта. Вы делите ее по запятым, каждое поле - это <code>Substring</code>. Пятьдесят полей - пятьдесят новых строк в куче. Потом вы эти поля парсите в числа. И вот уже горячий цикл обработки одной строки сгенерировал сотню объектов, которые умрут через микроволновку. GC недоволен, вы недоволен, p99 latency растет.</p>
+<p>А ведь по-хорошему нам не нужны новые строки. Нам нужны окна в уже существующую память: "вот здесь, с 17-го по 24-й байт, лежит число". <code>Span&lt;T&gt;</code> и <code>Memory&lt;T&gt;</code> - это ровно такие окна. Указатель плюс длина. Никакого копирования.</p>
+<p>Дальше я буду разбирать их по исходникам <code>System.Private.CoreLib</code> из <code>D:\runtime</code>, потому что вся суть этих типов видна именно в полях и в том, как рантайм обходится с ними.</p>
+<h2 id="_1">На пальцах: стек, куча и цена аллокации<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<p>Прежде чем нырять в <code>ref T _reference</code>, договоримся о базовых вещах. Если вы это знаете, пролистайте до словаря.</p>
+<p>В .NET память живет в двух основных местах. <strong>Стек</strong> - это небольшая область на каждый поток, где лежат локальные переменные и адреса возврата. Выделение на стеке бесплатно: компилятор просто резервирует место, сдвигая указатель стека. <strong>Куча</strong> - это большая общая область, где живут объекты. Выделение в куче тоже быстро (сдвиг указателя), но у него есть цена: объект нужно потом собрать, а сборка мусора останавливает потоки и стоит времени.</p>
+<p>Что значит "аллокация". Это выделение нового объекта в куче. Каждый <code>new</code>, каждый <code>Substring</code>, каждая конкатенация строк создают объект. Объект занимает память и требует работы GC, когда перестает быть нужен.</p>
+<p>Вернемся к примеру с CSV. Строка <code>"42,hello,3.14"</code> уже лежит в куче, это один объект. Когда вы делаете <code>Substring</code>, рантайм создает <strong>новую</strong> строку и копирует в нее символы. Для 50 полей это 50 новых объектов. Каждый из них нужно выделить, а потом собрать. Вот откуда сотня объектов на одну строку входных данных.</p>
+<p>А теперь идея <code>Span</code>. Вместо копирования символов мы храним два числа: "где начало" и "сколько символов". Указатель на символ внутри исходной строки плюс длина. Это и есть "окно". Никакого нового объекта, никакого копирования, никакой работы для GC.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>строка в куче:  [ 4 2 , h e l l o , 3 . 1 4 ]
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                  ^         ^
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                  |         |
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   Span поле 1 ---+         |
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   Span поле 2 -------------+
+</code></pre></div>
+<p>Оба span смотрят в ту же самую память. Просто с разных позиций и с разной длиной.</p>
+<p>Вот та же операция в двух вариантах, чтобы разница была осязаемой:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kt">string</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"42,hello,3.14"</span><span class="p">;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1">// вариант 1: две аллокации</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kt">string</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Substring</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span><span class="w">    </span><span class="c1">// новый объект string</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="kt">string</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Substring</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w">    </span><span class="c1">// еще один объект string</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1">// вариант 2: ноль аллокаций</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">AsSpan</span><span class="p">();</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">a2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span><span class="w">  </span><span class="c1">// просто ссылка + длина</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">b2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w">  </span><span class="c1">// просто ссылка + длина</span>
+</code></pre></div>
+<p>Вариант 2 не создает ни одного объекта. <code>a2</code> и <code>b2</code> - это 16 байт на стеке, которые указывают внутрь <code>line</code>.</p>
+<h2 id="_2">Словарь терминов<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<p><strong>Аллокация</strong> - выделение памяти под новый объект в куче.</p>
+<p><strong>Стек</strong> - область памяти потока для локальных переменных. Освобождается автоматически при выходе из метода.</p>
+<p><strong>Куча</strong> - область, где живут объекты. За ней следит сборщик мусора.</p>
+<p><strong>GC (Garbage Collector, сборщик мусора)</strong> - подсистема, которая находит объекты, ставшие ненужными, и освобождает их память.</p>
+<p><strong>Managed reference (управляемая ссылка)</strong> - ссылка на объект или его часть, которую видит и отслеживает GC. Если такая ссылка куда-то указывает, GC не тронет эту память.</p>
+<p><strong>Interior pointer (внутренний указатель)</strong> - ссылка не на начало объекта, а внутрь него. <code>Span&lt;T&gt;</code> держит именно такой указатель на элемент массива.</p>
+<p><strong>ref struct</strong> - структура, которая обязана жить на стеке. Компилятор запрещает класть ее в кучу.</p>
+<p><strong>ref return / ref local</strong> - возврат или хранение ссылки на переменную, а не ее копии. <code>ref T _reference</code> в <code>Span</code> - это ref-поле.</p>
+<p><strong>Bounds check (проверка границ)</strong> - проверка, что индекс не выходит за пределы массива или span. Каждое обращение <code>array[i]</code> содержит такую проверку.</p>
+<p><strong>Intrinsic (интринсик)</strong> - метод, который JIT не вызывает как обычный, а заменяет на специальный машинный код или на прямое обращение к данным.</p>
+<p><strong>JIT (Just-In-Time)</strong> - компилятор, который превращает IL в машинный код во время выполнения.</p>
+<p><strong>Inlining (встраивание)</strong> - замена вызова метода его телом прямо в месте вызова. Убирает накладные расходы на вызов.</p>
+<p><strong>Backing object (несущий объект)</strong> - объект, который реально владеет памятью. Для <code>Memory&lt;T&gt;</code> это массив, строка или <code>MemoryManager&lt;T&gt;</code>.</p>
+<p><strong>Pinning (пиннинг)</strong> - запрет сборщику перемещать объект. Нужен, когда нативный код держит указатель на управляемую память.</p>
+<p><strong>GCHandle</strong> - структура-дескриптор, через которую можно запинить объект и получить его адрес.</p>
+<p><strong>Boxing (упаковка)</strong> - превращение значимого типа в объект в куче. Требует аллокации.</p>
+<p><strong>State machine (машина состояний)</strong> - объект, в который компилятор превращает метод с <code>await</code>, чтобы приостановить и возобновить его.</p>
+<p><strong>Lifetime (время жизни)</strong> - как долго живет значение или ссылка. Главное правило span: он не живет дольше буфера, из которого сделан.</p>
+<p><strong>stackalloc</strong> - выделение буфера прямо на стеке. Не требует GC.</p>
+<h2 id="_3">Две структуры, одна идея<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<p><code>Span&lt;T&gt;</code> и <code>Memory&lt;T&gt;</code> описывают одно и то же: непрерывный кусок памяти с началом и длиной. Разница в одном слове - <code>ref</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">// Span.cs:28</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Span</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="p">{</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="c1">// Span.cs:31</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="k">internal</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">_reference</span><span class="p">;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="c1">// Span.cs:33</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">_length</span><span class="p">;</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>ref struct</code> - это структура, которая обязана жить на стеке. Компилятор и рантайм следят за тем, чтобы она никогда не оказалась в куче: ее нельзя упаковать в <code>object</code>, нельзя положить в поле класса, нельзя использовать в <code>async</code>-методе или в итераторе, потому что те превращаются в state machine на куче. Зато <code>ref T _reference</code> - это настоящая управляемая ссылка на элемент, которую видит GC. Она может указывать на массив, на стек (<code>stackalloc</code>), на нативную память. Рантайм знает, где эта ссылка, и не даст сборщику утащить массив, пока <code>Span</code> жив.</p>
+<p>Вот сводка, что с <code>ref struct</code> можно, а что нельзя. Это стоит запомнить, потому что половина ошибок компиляции со span - именно отсюда.</p>
+<table>
+<thead>
+<tr>
+<th>Действие</th>
+<th>Можно?</th>
+<th>Почему</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Локальная переменная в методе</td>
+<td>да</td>
+<td>живет на стеке</td>
+</tr>
+<tr>
+<td>Параметр метода</td>
+<td>да</td>
+<td>передается на стеке</td>
+</tr>
+<tr>
+<td>Возврат из метода</td>
+<td>да</td>
+<td>если не ссылается на локальный буфер</td>
+</tr>
+<tr>
+<td>Поле класса или структуры</td>
+<td>нет</td>
+<td>структура может уехать в кучу</td>
+</tr>
+<tr>
+<td>Упаковка в <code>object</code></td>
+<td>нет</td>
+<td>boxing создает объект в куче</td>
+</tr>
+<tr>
+<td>Использование в <code>async</code>/<code>yield</code></td>
+<td>нет</td>
+<td>метод превращается в state machine на куче</td>
+</tr>
+<tr>
+<td>Захват в лямбду</td>
+<td>нет</td>
+<td>замыкание живет в куче</td>
+</tr>
+<tr>
+<td>Элемент массива</td>
+<td>нет</td>
+<td>массив в куче</td>
+</tr>
+<tr>
+<td>Поле <code>ref struct</code> внутри другого <code>ref struct</code></td>
+<td>да</td>
+<td>обе на стеке</td>
+</tr>
+</tbody>
+</table>
+<p>Ключевое отличие <code>ref T</code> от обычного указателя <code>T*</code>. Указатель - это просто число, GC про него ничего не знает. Ссылка <code>ref T</code> - это тоже адрес, но рантайм умеет ее распознавать: при сборке мусора он понимает, что по этому адресу лежит живая ссылка, и корректирует ее, если объект переехал. Поэтому <code>Span</code> может спокойно указывать на массив, и GC не утащит этот массив, пока span жив, и не оставит висячий указатель после компактировки.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// Memory.cs:21-28</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">public</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Memory</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IEquatable</span><span class="o">&lt;</span><span class="n">Memory</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="p">{</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">object?</span><span class="w"> </span><span class="n">_object</span><span class="p">;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">_index</span><span class="p">;</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">_length</span><span class="p">;</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>Memory&lt;T&gt;</code> - обычная структура. Ее можно положить в поле класса, передать через <code>await</code>, сохранить в список. Внутри лежит <code>object</code>, который держит backing-память живой. Обратите внимание: <code>Memory&lt;T&gt;</code> не хранит <code>ref</code>, он хранит объект плюс индекс. Именно поэтому он переживает перемещение GC и асинхронные границы.</p>
+<p>Простая аналогия: <code>Span&lt;T&gt;</code> - это окно, которое живет ровно столько, сколько идет вычисление на текущем кадре стека. <code>Memory&lt;T&gt;</code> - это квитанция на багаж, которую можно положить в карман и предъявить позже.</p>
+<h2 id="span">Как Span<T> превращается в адрес<a class="headerlink" href="#span" title="Permanent link">&para;</a></h2>
+<p>Ключевой вопрос: откуда берется <code>ref T _reference</code>. Ответ в конструкторе от массива:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1">// Span.cs:52</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">_reference</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">MemoryMarshal</span><span class="p">.</span><span class="n">GetArrayDataReference</span><span class="p">(</span><span class="n">array</span><span class="p">);</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">_length</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">array</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span>
+</code></pre></div>
+<p><code>GetArrayDataReference</code> - интринсик. Смотрите <code>MemoryMarshal.cs:100</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="na">[Intrinsic]</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="na">[NonVersionable]</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">GetArrayDataReference</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">T</span><span class="p">[]</span><span class="w"> </span><span class="n">array</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="k">ref</span><span class="w"> </span><span class="nf">GetArrayDataReference</span><span class="p">(</span><span class="n">array</span><span class="p">);</span>
+</code></pre></div>
+<p>А реализация для <code>Array</code> (<code>MemoryMarshal.cs:118</code>) делает так:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// MemoryMarshal.cs:124</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">return</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">Unsafe</span><span class="p">.</span><span class="n">AddByteOffset</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">Unsafe</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="n">RawData</span><span class="o">&gt;</span><span class="p">(</span><span class="n">array</span><span class="p">).</span><span class="n">Data</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="p">(</span><span class="k">nuint</span><span class="p">)</span><span class="n">RuntimeHelpers</span><span class="p">.</span><span class="n">GetMethodTable</span><span class="p">(</span><span class="n">array</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">BaseSize</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="p">(</span><span class="k">nuint</span><span class="p">)(</span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="n">IntPtr</span><span class="p">)));</span>
+</code></pre></div>
+<p>Это ручной сдвиг к первому элементу массива: берем адрес заголовка объекта, прибавляем <code>BaseSize</code> минус два указателя (указатель на method table и на длину массива). Получаем адрес данных без проверки границ, которую сделал бы <code>array[0]</code>. Именно поэтому <code>Span&lt;T&gt;</code> умеет смотреть в массив, не дергая никаких проверок на входе.</p>
+<p>Разберем эти термины, потому что они встречаются везде. <strong>Method table</strong> - это структура, описывающая тип объекта: его размер, флаги, методы. В начале каждого объекта в куче лежит указатель на нее, так рантайм понимает, что это за тип. <strong>BaseSize</strong> - размер объекта в байтах, включая заголовок. У массива <code>BaseSize</code> включает заголовок, указатель на method table и поле длины.</p>
+<p>Вот как выглядит массив <code>int[3]</code> в памяти:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>адрес+0:  [заголовок]      8 байт (служебные данные GC)
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>адрес+8:  [MethodTable*]   8 байт указателя на тип int[]
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>адрес+16: [length]         4 байта (плюс 4 выравнивания)
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>адрес+24: [0]              4 байта, первый элемент
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>адрес+28: [1]              4 байта
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>адрес+32: [2]              4 байта
+</code></pre></div>
+<p><code>GetArrayDataReference</code> берет адрес начала объекта, прибавляет <code>BaseSize</code> (для <code>int[3]</code> это 24) и получает адрес первого элемента. <code>array[0]</code> сделал бы то же самое, но дополнительно проверил бы, что индекс 0 меньше длины. Здесь проверка не нужна: мы точно знаем, что смотрим на элемент 0 существующего массива.</p>
+<p>Почему это важно для производительности. Каждое обращение к массиву по индексу в .NET содержит проверку границ. В плотном цикле это лишние сравнения и ветвления. <code>GetArrayDataReference</code> дает адрес начала один раз, без проверки, и дальше можно идти по памяти. JIT часто сам убирает проверки в цикле, но не всегда. Здесь же компилятор получает гарантию от рантайма.</p>
+<p>Срез тоже ничего не копирует, он просто двигает ссылку:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1">// Span.cs:396-401</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">public</span><span class="w"> </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Slice</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">start</span><span class="p">)</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="p">{</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">uint</span><span class="p">)</span><span class="n">start</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="p">(</span><span class="kt">uint</span><span class="p">)</span><span class="n">_length</span><span class="p">)</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">        </span><span class="n">ThrowHelper</span><span class="p">.</span><span class="n">ThrowArgumentOutOfRangeException</span><span class="p">();</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">Unsafe</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">_reference</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="k">nint</span><span class="p">)(</span><span class="kt">uint</span><span class="p">)</span><span class="n">start</span><span class="p">),</span><span class="w"> </span><span class="n">_length</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">);</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="p">}</span>
+</code></pre></div>
+<p>А вот в <code>Slice(int start, int length)</code> зарыт красивый трюк с переполнением на 64 битах (<code>Span.cs:415-427</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="cp">#if TARGET_64BIT</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="c1">// Since start and length are both 32-bit, their sum can be computed across a 64-bit domain</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="c1">// without loss of fidelity. The cast to uint before the cast to ulong ensures that the</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="c1">// extension from 32- to 64-bit is zero-extending rather than sign-extending.</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">ulong</span><span class="p">)(</span><span class="kt">uint</span><span class="p">)</span><span class="n">start</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="kt">ulong</span><span class="p">)(</span><span class="kt">uint</span><span class="p">)</span><span class="n">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="p">(</span><span class="kt">ulong</span><span class="p">)(</span><span class="kt">uint</span><span class="p">)</span><span class="n">_length</span><span class="p">)</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">        </span><span class="n">ThrowHelper</span><span class="p">.</span><span class="n">ThrowArgumentOutOfRangeException</span><span class="p">();</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="cp">#else</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="kt">uint</span><span class="p">)</span><span class="n">start</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="p">(</span><span class="kt">uint</span><span class="p">)</span><span class="n">_length</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">(</span><span class="kt">uint</span><span class="p">)</span><span class="n">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="p">(</span><span class="kt">uint</span><span class="p">)(</span><span class="n">_length</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">))</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">        </span><span class="n">ThrowHelper</span><span class="p">.</span><span class="n">ThrowArgumentOutOfRangeException</span><span class="p">();</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="cp">#endif</span>
+</code></pre></div>
+<p>На 64-битной платформе обе проверки - отрицательный <code>start</code>, отрицательный <code>length</code>, выход за границы - сворачиваются в одну. <code>uint</code> перед <code>ulong</code> гарантирует нулевое расширение, а не знаковое, поэтому отрицательное число превращается в огромное положительное и сразу проваливает сравнение. Один <code>cmp</code>, одна ветка вместо двух. Рантайм экономит такт на каждом срезе, потому что срезы случаются в каждом парсере.</p>
+<p>Теперь про размер. Два поля: ссылка (8 байт на x64) и длина (4 байта), плюс выравнивание. То есть <code>Span&lt;T&gt;</code> - это примерно 16 байт, которые целиком помещаются в пару регистров и обычно вообще не попадают в память, если JIT развернул инлайнинг. <code>Span&lt;T&gt;</code> помечен <code>[Intrinsic]</code> (<code>Span.cs:27</code>), и <code>Length</code> тоже (<code>Span.cs:165</code>), так что JIT умеет обращаться с ним как с первоклассной структурой, а не как с обычным типом.</p>
+<h2 id="span-heap">Почему Span нельзя протащить в heap<a class="headerlink" href="#span-heap" title="Permanent link">&para;</a></h2>
+<p>Вот код, который выглядит невинно и не компилируется:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Parser</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="p">{</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_buffer</span><span class="p">;</span><span class="w"> </span><span class="c1">// ошибка компилятора: ref struct не может быть полем класса</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="p">}</span>
+</code></pre></div>
+<p>И вот такой тоже:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">async</span><span class="w"> </span><span class="n">Task</span><span class="w"> </span><span class="nf">ReadAsync</span><span class="p">(</span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">buffer</span><span class="p">)</span><span class="w"> </span><span class="c1">// ошибка: ref struct нельзя в async-метод</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="p">{</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="n">socket</span><span class="p">.</span><span class="n">ReceiveAsync</span><span class="p">(</span><span class="n">buffer</span><span class="p">);</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="p">}</span>
+</code></pre></div>
+<p>Компилятор режет это не из вредности. Если бы <code>Span&lt;T&gt;</code> лежал в куче, его <code>ref T _reference</code> мог бы указывать на кадр стека, которого уже нет. GC не смог бы отследить такую ссылку корректно, и мы бы получили висячий указатель в управляемой памяти. Язык просто запрещает ситуацию на этапе компиляции. Это и есть та самая "memory safety без unsafe".</p>
+<p>Разберем, почему <code>async</code> особенно опасен. Когда метод содержит <code>await</code>, компилятор переписывает его в <strong>state machine</strong> - объект в куче, который хранит состояние метода между приостановками. Все локальные переменные, переживающие <code>await</code>, становятся полями этого объекта. Если бы среди них был <code>Span</code>, он оказался бы в куче. А его <code>ref</code> мог бы указывать на буфер, который к моменту возобновления уже освобожден.</p>
+<p>Вот что примерно происходит с таким методом:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">async</span><span class="w"> </span><span class="n">Task</span><span class="w"> </span><span class="nf">Example</span><span class="p">()</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="p">{</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">buffer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="kt">byte</span><span class="p">[</span><span class="mi">256</span><span class="p">];</span><span class="w"> </span><span class="c1">// буфер на стеке</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nf">SomethingAsync</span><span class="p">();</span><span class="w">                    </span><span class="c1">// здесь кадр стека исчезает</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="n">buffer</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                             </span><span class="c1">// буфер уже не существует</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>await</code> освобождает текущий кадр стека и возвращает управление вызывающему. Буфер <code>buffer</code> жил в этом кадре. Когда метод возобновится, это будет уже другой кадр, и адрес из <code>ref</code> будет указывать в никуда. Компилятор запрещает такой код, потому что иначе мы получили бы порчу памяти, от которой GC не защитит.</p>
+<p>Отсюда практическое правило: <code>Span&lt;T&gt;</code> - для синхронного, локального кода. Как только нужно сохранить окно в объекте или пережить <code>await</code>, берем <code>Memory&lt;T&gt;</code>.</p>
+<h2 id="memory">Memory<T>: квитанция вместо окна<a class="headerlink" href="#memory" title="Permanent link">&para;</a></h2>
+<p><code>Memory&lt;T&gt;</code> устроен вокруг <code>_object</code>. Посмотрите на конструктор от массива (<code>Memory.cs:47-49</code>): <code>_object = array; _index = 0; _length = array.Length</code>. Backing-объект держится живым, потому что на него ссылается поле структуры.</p>
+<p>Вот как выглядит <code>Memory&lt;int&gt;</code>, который смотрит на кусок массива:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kt">int</span><span class="p">[]</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">int</span><span class="p">[</span><span class="mi">100</span><span class="p">];</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">Memory</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">mem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">AsMemory</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="c1">// элементы с 10 по 14</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>Memory&lt;int&gt; (16 байт на стеке)
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>  _object = -------&gt; int[100] в куче (весь массив)
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>  _index  = 10
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>  _length = 5
+</code></pre></div>
+<p>Обратите внимание: <code>Memory&lt;int&gt;</code> хранит ссылку на <strong>весь</strong> массив, а не на его часть. Смещение и длину он держит у себя. Именно поэтому GC видит обычную ссылку на объект и корректно его сохраняет. А когда нужно получить <code>Span</code>, рантайм берет адрес массива, прибавляет <code>_index</code> и получает нужное окно.</p>
+<p>Отсюда и главный минус, о котором мы поговорим в ловушках: <code>Memory</code> держит живым весь массив целиком. Если массив на 100 МБ, а <code>Memory</code> смотрит на 10 байт, все 100 МБ останутся в памяти, пока жива структура.</p>
+<p>Чтобы получить <code>Span&lt;T&gt;</code> из <code>Memory&lt;T&gt;</code>, рантайм делает нетривиальную работу (<code>Memory.cs:263</code>). Внутри он разбирает, что за объект лежит в <code>_object</code>:</p>
+<ul>
+<li><code>string</code>, если <code>T</code> это <code>char</code>. Тогда берется <code>GetRawStringData</code> строки.</li>
+<li>массив. Тогда <code>GetArrayDataReference</code>.</li>
+<li><code>MemoryManager&lt;T&gt;</code>. Тогда <code>manager.GetSpan()</code>.</li>
+</ul>
+<p>Вот фрагмент (<code>Memory.cs:283-319</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">T</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">char</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">tmpObject</span><span class="p">.</span><span class="n">GetType</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">typeof</span><span class="p">(</span><span class="kt">string</span><span class="p">))</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="p">{</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="n">refToReturn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">Unsafe</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="kt">char</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="p">((</span><span class="kt">string</span><span class="p">)</span><span class="n">tmpObject</span><span class="p">).</span><span class="n">GetRawStringData</span><span class="p">());</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="n">lengthOfUnderlyingSpan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Unsafe</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="kt">string</span><span class="o">&gt;</span><span class="p">(</span><span class="n">tmpObject</span><span class="p">).</span><span class="n">Length</span><span class="p">;</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="p">}</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="k">else</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="p">(</span><span class="n">RuntimeHelpers</span><span class="p">.</span><span class="n">ObjectHasComponentSize</span><span class="p">(</span><span class="n">tmpObject</span><span class="p">))</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="p">{</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">    </span><span class="n">refToReturn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">MemoryMarshal</span><span class="p">.</span><span class="n">GetArrayDataReference</span><span class="p">(</span><span class="n">Unsafe</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="n">T</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">(</span><span class="n">tmpObject</span><span class="p">));</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">    </span><span class="n">lengthOfUnderlyingSpan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Unsafe</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="n">T</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">(</span><span class="n">tmpObject</span><span class="p">).</span><span class="n">Length</span><span class="p">;</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="p">}</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="k">else</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="p">{</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">memoryManagerSpan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Unsafe</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="n">MemoryManager</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">tmpObject</span><span class="p">).</span><span class="n">GetSpan</span><span class="p">();</span>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="w">    </span><span class="n">refToReturn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">MemoryMarshal</span><span class="p">.</span><span class="n">GetReference</span><span class="p">(</span><span class="n">memoryManagerSpan</span><span class="p">);</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="w">    </span><span class="n">lengthOfUnderlyingSpan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memoryManagerSpan</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a><span class="p">}</span>
+</code></pre></div>
+<p>Тут же есть защита от "порванной" структуры: <code>desiredStartIndex = (uint)_index &amp; (uint)RemoveFlagsBitMask</code> (<code>Memory.cs:328</code>). <code>RemoveFlagsBitMask</code> - это <code>0x7FFFFFFF</code> (<code>ReadOnlyMemory.cs:30</code>). Старший бит индекса используется как флаг: если он выставлен, значит память уже запинена и <code>Pin()</code> не будет выделять новый <code>GCHandle</code>. Об этом прямо написано в комментарии над полями (<code>Memory.cs:23-25</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1">// The highest order bit of _index is used to discern whether _object is a pre-pinned array.</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="c1">// (_index &lt; 0) =&gt; _object is a pre-pinned array, so Pin() will not allocate a new GCHandle</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="c1">//       (else) =&gt; Pin() needs to allocate a new GCHandle to pin the object.</span>
+</code></pre></div>
+<p>Экономия одного бита индекса, чтобы не заводить отдельное поле-флаг. Классика низкоуровневого дизайна рантайма.</p>
+<p><code>Memory&lt;T&gt;</code> весит ровно 16 байт: <code>object</code> (8), <code>_index</code> (4), <code>_length</code> (4). Никакого boxing внутри, никаких скрытых аллокаций при копировании структуры.</p>
+<h2 id="span-memory_1">Span или Memory: как выбрать<a class="headerlink" href="#span-memory_1" title="Permanent link">&para;</a></h2>
+<p>Правило простое, но его стоит закрепить таблицей.</p>
+<table>
+<thead>
+<tr>
+<th>Ситуация</th>
+<th>Что брать</th>
+<th>Почему</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Локальная обработка внутри метода</td>
+<td><code>Span&lt;T&gt;</code></td>
+<td>быстрее, нет объекта, живет на стеке</td>
+</tr>
+<tr>
+<td>Параметр синхронного метода</td>
+<td><code>ReadOnlySpan&lt;T&gt;</code></td>
+<td>нет аллокации, читаемость</td>
+</tr>
+<tr>
+<td>Поле класса</td>
+<td><code>Memory&lt;T&gt;</code> или <code>ReadOnlyMemory&lt;T&gt;</code></td>
+<td>span в поле нельзя</td>
+</tr>
+<tr>
+<td>Данные переживают <code>await</code></td>
+<td><code>Memory&lt;T&gt;</code></td>
+<td>span запрещен в async</td>
+</tr>
+<tr>
+<td>Возврат из <code>async</code> метода</td>
+<td><code>Memory&lt;T&gt;</code></td>
+<td>span нельзя вернуть через await</td>
+</tr>
+<tr>
+<td>Буфер под interop</td>
+<td><code>Memory&lt;T&gt;</code> + <code>Pin</code></td>
+<td>нужен <code>void*</code> и контроль времени жизни</td>
+</tr>
+<tr>
+<td>Парсинг строки на месте</td>
+<td><code>ReadOnlySpan&lt;char&gt;</code></td>
+<td>ноль копирований</td>
+</tr>
+<tr>
+<td>Долгий цикл по массиву</td>
+<td><code>Span&lt;T&gt;</code></td>
+<td>JIT убирает проверки границ</td>
+</tr>
+</tbody>
+</table>
+<p>Типичный прием на границе: снаружи API принимает <code>Memory&lt;T&gt;</code>, а внутри метода сразу превращает его в <code>Span&lt;T&gt;</code> и дальше работает только со span. Так и аллокаций нет, и API удобный.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Process</span><span class="p">(</span><span class="n">ReadOnlyMemory</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="p">{</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">    </span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">data</span><span class="p">.</span><span class="n">Span</span><span class="p">;</span><span class="w"> </span><span class="c1">// один раз</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span><span class="c1">// дальше везде span, без обращений к Memory</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span><span class="n">Parse</span><span class="p">(</span><span class="n">span</span><span class="p">);</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="p">}</span>
+</code></pre></div>
+<p>Важно: <code>data.Span</code> каждый раз делает работу по разбору <code>_object</code>. Если вызывать его в цикле, вы будете repeatedly платить за то, что можно сделать один раз. Поэтому вынесли в локальную переменную.</p>
+<h2 id="readonlyspan">Строка как ReadOnlySpan<char><a class="headerlink" href="#readonlyspan" title="Permanent link">&para;</a></h2>
+<p>Самая частая задача - пройтись по строке без создания новых строк. У <code>string</code> есть внутренний метод:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1">// String.cs:531</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="k">internal</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="nf">GetRawStringData</span><span class="p">()</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">_firstChar</span><span class="p">;</span>
+</code></pre></div>
+<p>Это ссылка на первый символ. А расширение <code>AsSpan</code> (<code>MemoryExtensions.cs:97</code>) собирает из нее span:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="na">[Intrinsic]</span><span class="w"> </span><span class="c1">// When input is a string literal</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">AsSpan</span><span class="p">(</span><span class="k">this</span><span class="w"> </span><span class="kt">string?</span><span class="w"> </span><span class="n">text</span><span class="p">)</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="p">{</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">text</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">null</span><span class="p">)</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="k">default</span><span class="p">;</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="p">(</span><span class="k">ref</span><span class="w"> </span><span class="n">text</span><span class="p">.</span><span class="n">GetRawStringData</span><span class="p">(),</span><span class="w"> </span><span class="n">text</span><span class="p">.</span><span class="n">Length</span><span class="p">);</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>[Intrinsic]</code> здесь не для красоты. Когда вы пишете <code>"GET / HTTP/1.1".AsSpan()</code>, JIT видит строковый литерал и может свернуть весь span в статическую ссылку на данные в куче без единой проверки.</p>
+<p>Сравните:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kt">string</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"42,hello,3.14"</span><span class="p">;</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="c1">// аллокация на каждое поле</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="kt">string</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Substring</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span><span class="w">   </span><span class="c1">// "42"</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="kt">string</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Substring</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w">   </span><span class="c1">// "hello"</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="c1">// ноль аллокаций</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">AsSpan</span><span class="p">();</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">a2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">b2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+</code></pre></div>
+<p><code>a2</code> и <code>b2</code> - это просто ссылка внутрь исходной строки плюс длина. Строка не копируется, <code>Substring</code> не вызывается, GC молчит. Парсеры и <code>int.Parse(ReadOnlySpan&lt;char&gt;)</code>, и <code>double.Parse(ReadOnlySpan&lt;char&gt;)</code>, и <code>Encoding.GetBytes(ReadOnlySpan&lt;char&gt;, Span&lt;byte&gt;)</code> работают именно так.</p>
+<h2 id="memorymanager">MemoryManager<T>: память, которую придумали вы<a class="headerlink" href="#memorymanager" title="Permanent link">&para;</a></h2>
+<p>Откуда <code>Memory&lt;T&gt;</code> может смотреть в нативную память или в пул? Через <code>MemoryManager&lt;T&gt;</code> (<code>Buffers/MemoryManager.cs:11</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">MemoryManager</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IMemoryOwner</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">IPinnable</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="p">{</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">virtual</span><span class="w"> </span><span class="n">Memory</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Memory</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">Memory</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">GetSpan</span><span class="p">().</span><span class="n">Length</span><span class="p">);</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="n">Span</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetSpan</span><span class="p">();</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="n">MemoryHandle</span><span class="w"> </span><span class="nf">Pin</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">elementIndex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Unpin</span><span class="p">();</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">    </span><span class="k">protected</span><span class="w"> </span><span class="k">abstract</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Dispose</span><span class="p">(</span><span class="kt">bool</span><span class="w"> </span><span class="n">disposing</span><span class="p">);</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="p">}</span>
+</code></pre></div>
+<p>Вы наследуетесь, реализуете <code>GetSpan</code>, <code>Pin</code>, <code>Unpin</code>, и <code>Memory&lt;T&gt;</code> начинает смотреть куда угодно. <code>Memory&lt;T&gt;.Span</code> в ветке <code>else</code> (<code>Memory.cs:315</code>) дергает <code>manager.GetSpan()</code>, а <code>Memory&lt;T&gt;.Pin</code> (<code>Memory.cs:428</code>) дергает <code>manager.Pin(_index)</code>.</p>
+<p>Пин возвращает <code>MemoryHandle</code> (<code>Buffers/MemoryHandle.cs:11</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">public</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">MemoryHandle</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IDisposable</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="p">{</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">void</span><span class="o">*</span><span class="w"> </span><span class="n">_pointer</span><span class="p">;</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="n">GCHandle</span><span class="w"> </span><span class="n">_handle</span><span class="p">;</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="n">IPinnable</span><span class="o">?</span><span class="w"> </span><span class="n">_pinnable</span><span class="p">;</span>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">    </span><span class="p">...</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Dispose</span><span class="p">()</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_handle</span><span class="p">.</span><span class="n">IsAllocated</span><span class="p">)</span><span class="w"> </span><span class="n">_handle</span><span class="p">.</span><span class="n">Free</span><span class="p">();</span>
+<a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">_pinnable</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="k">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">_pinnable</span><span class="p">.</span><span class="n">Unpin</span><span class="p">();</span><span class="w"> </span><span class="n">_pinnable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a><span class="w">        </span><span class="n">_pointer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">;</span>
+<a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a><span class="p">}</span>
+</code></pre></div>
+<p>Это то, что нужно для interop: получаете <code>void*</code>, отдаете его нативной функции, а <code>Dispose</code> снимает пин. <code>ArrayPool&lt;T&gt;</code> и <code>MemoryPool&lt;T&gt;</code> построены на этом же механизме.</p>
+<h2 id="_4">Что при этом делает процессор<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h2>
+<p>JIT знает про <code>Span&lt;T&gt;</code> не как про обычную структуру, а как про встроенный паттерн. Несколько практических следствий:</p>
+<ul>
+<li>Проверка границ в цикле по span часто устраняется. Если вы пишете <code>for (int i = 0; i &lt; span.Length; i++)</code>, JIT видит, что индекс ограничен длиной, и убирает per-element bounds check. На массиве такое тоже возможно, но со span это надежнее.</li>
+<li><code>GetArrayDataReference</code> экономит проверку на нулевом элементе, которую делает обычное индексирование массива.</li>
+<li><code>CopyTo</code> дергает <code>Buffer.Memmove</code> напрямую (<code>Span.cs:334</code>), без промежуточного слоя и с корректной обработкой перекрытия областей.</li>
+<li><code>stackalloc</code> теперь типизирован: <code>Span&lt;byte&gt; buf = stackalloc byte[256];</code> дает буфер на стеке с проверкой границ. Ноль аллокаций, ноль работы для GC.</li>
+</ul>
+<p>Но есть и цена. <code>Span&lt;T&gt;</code> - это структура, которую передают по значению. Если JIT не заинлайнил метод, каждый вызов копирует 16 байт. На горячем пути это не проблема, потому что все инлайнится, но в рекурсивных или виртуальных сценариях может внезапно стать заметно.</p>
+<h2 id="_5">Ловушки, на которые легко наступить<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<p><strong>Span, возвращенный из метода, может указывать на мертвый стек.</strong> Вот это ловушка номер один:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">Span</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetNumbers</span><span class="p">()</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="p">{</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="kt">int</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">local</span><span class="p">;</span><span class="w"> </span><span class="c1">// компилятор не даст, если вернуть напрямую</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="p">}</span>
+</code></pre></div>
+<p>Компилятор защищает от прямого возврата, но <code>ref struct</code> все равно легко протащить через <code>ref</code>-параметры или замыкания так, что lifetime станет неочевидным. Правило простое: span живет не дольше того буфера, из которого он сделан.</p>
+<p><strong><code>Span&lt;T&gt;.Equals</code> всегда кидает исключение.</strong> Это не забывчивость авторов, а следствие того, что span нельзя упаковать (<code>Span.cs:192-206</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="na">[Obsolete("Equals() on Span will always throw an exception. Use the equality operator instead.")]</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="k">public</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">Equals</span><span class="p">(</span><span class="kt">object?</span><span class="w"> </span><span class="n">obj</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="nf">NotSupportedException</span><span class="p">(</span><span class="n">SR</span><span class="p">.</span><span class="n">NotSupported_CannotCallEqualsOnSpan</span><span class="p">);</span>
+</code></pre></div>
+<p>Потому что любой вызов <code>Equals(object)</code> требует боксинга, а <code>ref struct</code> боксить нельзя. Для сравнения есть <code>operator ==</code> (<code>Span.cs:365</code>), который сравнивает адрес и длину, а не содержимое.</p>
+<p><strong><code>ToArray</code> аллоцирует.</strong> <code>Span.cs:437</code> честно об этом пишет в комментарии. Если вы вызываете <code>ToArray</code> в горячем пути, вы вернули все аллокации, от которых убегали. Мост к старым API на массивах неизбежен, но его стоит держать на границе, а не в цикле.</p>
+<p><strong><code>Memory&lt;T&gt;</code> держит весь backing-объект.</strong> Если вы нарезали <code>Memory&lt;byte&gt;</code> из массива в 100 МБ и сохранили срез в 10 байт, массив все равно останется живым, пока живет <code>Memory&lt;T&gt;</code>. GC не умеет освобождать часть массива. Для долгоживущих мелких срезов это утечка по памяти.</p>
+<p><strong><code>Memory&lt;T&gt;.Pin</code> на обычном массиве аллоцирует <code>GCHandle</code>.</strong> Смотрите <code>Memory.cs:420-422</code>: для не-пре-пиненного массива создается <code>GCHandle.Alloc(..., GCHandleType.Pinned)</code>. Если это происходит на каждую операцию, вы снова платите. Либо используйте память, помеченную как pre-pinned (тогда старший бит <code>_index</code> выставится и <code>Pin</code> обойдется без хэндла), либо <code>MemoryManager&lt;T&gt;</code>, который сам управляет пином.</p>
+<h2 id="_6">Частые ошибки на примерах<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h2>
+<p>Разберем типовые грабли в виде "было / стало", потому что на словах все понятно, а в коде ошибки повторяются.</p>
+<p><strong>Срез строки в цикле.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1">// было: аллокация на каждую итерацию</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">lines</span><span class="p">.</span><span class="n">Count</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="p">{</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">    </span><span class="kt">string</span><span class="w"> </span><span class="n">field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">Substring</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">    </span><span class="n">Handle</span><span class="p">(</span><span class="n">field</span><span class="p">);</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="p">}</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="c1">// стало: ноль аллокаций</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">lines</span><span class="p">.</span><span class="n">Count</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a><span class="p">{</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a><span class="w">    </span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lines</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">AsSpan</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span>
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a><span class="w">    </span><span class="n">Handle</span><span class="p">(</span><span class="n">field</span><span class="p">);</span>
+<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Span как поле класса.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1">// было: не компилируется</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">Reader</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="p">{</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_buffer</span><span class="p">;</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="p">}</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="c1">// стало: Memory в поле, Span локально</span>
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">Reader</span>
+<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="p">{</span>
+<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="n">Memory</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_buffer</span><span class="p">;</span>
+<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a>
+<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a><span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">void</span><span class="w"> </span><span class="nf">Read</span><span class="p">()</span>
+<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a><span class="w">        </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">span</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">_buffer</span><span class="p">.</span><span class="n">Span</span><span class="p">;</span>
+<a id="__codelineno-26-15" name="__codelineno-26-15" href="#__codelineno-26-15"></a><span class="w">        </span><span class="c1">// работаем со span</span>
+<a id="__codelineno-26-16" name="__codelineno-26-16" href="#__codelineno-26-16"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-26-17" name="__codelineno-26-17" href="#__codelineno-26-17"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Возврат буфера со стека.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1">// было: указывает на мертвый стек</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="n">Span</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Broken</span><span class="p">()</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="p">{</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="kt">int</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">local</span><span class="p">;</span>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="p">}</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a>
+<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a><span class="c1">// стало: либо копируем наружу</span>
+<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a><span class="kt">int</span><span class="p">[]</span><span class="w"> </span><span class="nf">CopyOut</span><span class="p">()</span>
+<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a><span class="p">{</span>
+<a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a><span class="w">    </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="kt">int</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+<a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">local</span><span class="p">.</span><span class="n">ToArray</span><span class="p">();</span>
+<a id="__codelineno-27-13" name="__codelineno-27-13" href="#__codelineno-27-13"></a><span class="p">}</span>
+<a id="__codelineno-27-14" name="__codelineno-27-14" href="#__codelineno-27-14"></a>
+<a id="__codelineno-27-15" name="__codelineno-27-15" href="#__codelineno-27-15"></a><span class="c1">// либо просим буфер у вызывающего</span>
+<a id="__codelineno-27-16" name="__codelineno-27-16" href="#__codelineno-27-16"></a><span class="k">void</span><span class="w"> </span><span class="nf">Fill</span><span class="p">(</span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">destination</span><span class="p">)</span>
+<a id="__codelineno-27-17" name="__codelineno-27-17" href="#__codelineno-27-17"></a><span class="p">{</span>
+<a id="__codelineno-27-18" name="__codelineno-27-18" href="#__codelineno-27-18"></a><span class="w">    </span><span class="c1">// пишем прямо в переданный буфер</span>
+<a id="__codelineno-27-19" name="__codelineno-27-19" href="#__codelineno-27-19"></a><span class="p">}</span>
+</code></pre></div>
+<p>Второй вариант лучше: вызывающий сам решает, откуда взять буфер, и аллокаций по-прежнему ноль, если он передал <code>stackalloc</code> или кусок пула.</p>
+<p><strong>Memory держит большой массив.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1">// было: весь массив на 100 МБ остается живым</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">big</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">byte</span><span class="p">[</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="p">];</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="n">ReadOnlyMemory</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">slice</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">big</span><span class="p">.</span><span class="n">AsMemory</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="n">Store</span><span class="p">(</span><span class="n">slice</span><span class="p">);</span><span class="w"> </span><span class="c1">// теперь big нельзя собрать</span>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>
+<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="c1">// стало: если нужен маленький долгоживущий кусок, скопируйте его</span>
+<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a><span class="n">ReadOnlyMemory</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">slice2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">big</span><span class="p">.</span><span class="n">AsMemory</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">).</span><span class="n">ToArray</span><span class="p">();</span>
+<a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="n">Store</span><span class="p">(</span><span class="n">slice2</span><span class="p">);</span><span class="w"> </span><span class="c1">// держит только 10 байт</span>
+</code></pre></div>
+<p><strong>Пиннинг на каждом вызове.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1">// было: GCHandle создается на каждую операцию</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="k">using</span><span class="w"> </span><span class="nn">MemoryHandle</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">memory</span><span class="p">.</span><span class="n">Pin</span><span class="p">();</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="n">NativeCall</span><span class="p">(</span><span class="n">h</span><span class="p">.</span><span class="n">Pointer</span><span class="p">);</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>
+<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="c1">// стало: либо заранее запиненная память (POH)</span>
+<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a><span class="kt">byte</span><span class="p">[]</span><span class="w"> </span><span class="n">pinned</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GC</span><span class="p">.</span><span class="n">AllocateUninitializedArray</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">4096</span><span class="p">,</span><span class="w"> </span><span class="n">pinned</span><span class="p">:</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+<a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a><span class="k">using</span><span class="w"> </span><span class="nn">MemoryHandle</span><span class="w"> </span><span class="n">h2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pinned</span><span class="p">.</span><span class="n">AsMemory</span><span class="p">().</span><span class="n">Pin</span><span class="p">();</span><span class="w"> </span><span class="c1">// без нового GCHandle</span>
+<a id="__codelineno-29-8" name="__codelineno-29-8" href="#__codelineno-29-8"></a>
+<a id="__codelineno-29-9" name="__codelineno-29-9" href="#__codelineno-29-9"></a><span class="c1">// либо один долгоживущий хэндл на весь жизненный цикл</span>
+</code></pre></div>
+<p><strong>ToArray в горячем пути.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="c1">// было: аллокация ради передачи в старый API</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="n">ProcessData</span><span class="p">(</span><span class="n">span</span><span class="p">.</span><span class="n">ToArray</span><span class="p">());</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="c1">// стало: используйте перегрузку на span, если она есть</span>
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="n">ProcessData</span><span class="p">(</span><span class="n">span</span><span class="p">);</span>
+<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a>
+<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="c1">// а если нет, держите ToArray на границе, а не в цикле</span>
+</code></pre></div>
+<p><strong>Сравнение span через Equals.</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="c1">// было: исключение</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="kt">bool</span><span class="w"> </span><span class="n">eq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span1</span><span class="p">.</span><span class="n">Equals</span><span class="p">(</span><span class="n">span2</span><span class="p">);</span><span class="w"> </span><span class="c1">// NotSupportedException</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="c1">// стало: сравнение содержимого</span>
+<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a><span class="kt">bool</span><span class="w"> </span><span class="n">eq2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span1</span><span class="p">.</span><span class="n">SequenceEqual</span><span class="p">(</span><span class="n">span2</span><span class="p">);</span>
+<a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a>
+<a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="c1">// или сравнение адреса и длины</span>
+<a id="__codelineno-31-8" name="__codelineno-31-8" href="#__codelineno-31-8"></a><span class="kt">bool</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">span1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">span2</span><span class="p">;</span>
+</code></pre></div>
+<h2 id="_7">Практика: парсим без аллокаций<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h2>
+<p>Соберем кусок, который раньше создавал гору строк:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="k">using</span><span class="w"> </span><span class="nn">System</span><span class="p">;</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="k">using</span><span class="w"> </span><span class="nn">System.Buffers.Text</span><span class="p">;</span>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">TryParsePoint</span><span class="p">(</span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">line</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="p">{</span>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a><span class="w">    </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-32-7" name="__codelineno-32-7" href="#__codelineno-32-7"></a><span class="w">    </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-32-8" name="__codelineno-32-8" href="#__codelineno-32-8"></a>
+<a id="__codelineno-32-9" name="__codelineno-32-9" href="#__codelineno-32-9"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">comma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">IndexOf</span><span class="p">(</span><span class="sc">','</span><span class="p">);</span>
+<a id="__codelineno-32-10" name="__codelineno-32-10" href="#__codelineno-32-10"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">comma</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+<a id="__codelineno-32-11" name="__codelineno-32-11" href="#__codelineno-32-11"></a>
+<a id="__codelineno-32-12" name="__codelineno-32-12" href="#__codelineno-32-12"></a><span class="w">    </span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">left</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">comma</span><span class="p">);</span>
+<a id="__codelineno-32-13" name="__codelineno-32-13" href="#__codelineno-32-13"></a><span class="w">    </span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">right</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="n">comma</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<a id="__codelineno-32-14" name="__codelineno-32-14" href="#__codelineno-32-14"></a>
+<a id="__codelineno-32-15" name="__codelineno-32-15" href="#__codelineno-32-15"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kt">int</span><span class="p">.</span><span class="n">TryParse</span><span class="p">(</span><span class="n">left</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="kt">int</span><span class="p">.</span><span class="n">TryParse</span><span class="p">(</span><span class="n">right</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">y</span><span class="p">);</span>
+<a id="__codelineno-32-16" name="__codelineno-32-16" href="#__codelineno-32-16"></a><span class="p">}</span>
+</code></pre></div>
+<p>Ни одного <code>Substring</code>, ни одной промежуточной строки. <code>int.TryParse(ReadOnlySpan&lt;char&gt;)</code> читает символы прямо из исходной строки.</p>
+<p>А вот запись без аллокаций через <code>Span&lt;byte&gt;</code> и UTF-8:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="k">static</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="nf">WritePoint</span><span class="p">(</span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">&gt;</span><span class="w"> </span><span class="n">destination</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">y</span><span class="p">)</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="p">{</span>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="w">    </span><span class="n">Utf8Formatter</span><span class="p">.</span><span class="n">TryFormat</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">destination</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">written</span><span class="p">);</span>
+<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="w">    </span><span class="n">destination</span><span class="p">[</span><span class="n">written</span><span class="o">++</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="kt">byte</span><span class="p">)</span><span class="sc">':'</span><span class="p">;</span>
+<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a><span class="w">    </span><span class="n">Utf8Formatter</span><span class="p">.</span><span class="n">TryFormat</span><span class="p">(</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">destination</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="n">written</span><span class="p">),</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">writtenY</span><span class="p">);</span>
+<a id="__codelineno-33-6" name="__codelineno-33-6" href="#__codelineno-33-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">written</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">writtenY</span><span class="p">;</span>
+<a id="__codelineno-33-7" name="__codelineno-33-7" href="#__codelineno-33-7"></a><span class="p">}</span>
+</code></pre></div>
+<p>Если буфер выделен из <code>ArrayPool&lt;byte&gt;</code>, вся операция проходит без единого объекта в куче.</p>
+<p>Соберем полный пример: разбор CSV-строки на числа без единой аллокации.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="k">static</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">TryParseCsv</span><span class="p">(</span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">line</span><span class="p">,</span><span class="w"> </span><span class="n">Span</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">results</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">count</span><span class="p">)</span>
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="p">{</span>
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="w">    </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a>
+<a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Length</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<a id="__codelineno-34-7" name="__codelineno-34-7" href="#__codelineno-34-7"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-34-8" name="__codelineno-34-8" href="#__codelineno-34-8"></a><span class="w">        </span><span class="c1">// разделитель - запятая или конец строки</span>
+<a id="__codelineno-34-9" name="__codelineno-34-9" href="#__codelineno-34-9"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Length</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">line</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="sc">','</span><span class="p">)</span>
+<a id="__codelineno-34-10" name="__codelineno-34-10" href="#__codelineno-34-10"></a><span class="w">        </span><span class="p">{</span>
+<a id="__codelineno-34-11" name="__codelineno-34-11" href="#__codelineno-34-11"></a><span class="w">            </span><span class="n">ReadOnlySpan</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">&gt;</span><span class="w"> </span><span class="n">field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Slice</span><span class="p">(</span><span class="n">start</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="p">);</span>
+<a id="__codelineno-34-12" name="__codelineno-34-12" href="#__codelineno-34-12"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="kt">int</span><span class="p">.</span><span class="n">TryParse</span><span class="p">(</span><span class="n">field</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="k">value</span><span class="p">))</span>
+<a id="__codelineno-34-13" name="__codelineno-34-13" href="#__codelineno-34-13"></a><span class="w">                </span><span class="k">return</span><span class="w"> </span><span class="k">false</span><span class="p">;</span>
+<a id="__codelineno-34-14" name="__codelineno-34-14" href="#__codelineno-34-14"></a>
+<a id="__codelineno-34-15" name="__codelineno-34-15" href="#__codelineno-34-15"></a><span class="w">            </span><span class="n">results</span><span class="p">[</span><span class="n">count</span><span class="o">++</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">value</span><span class="p">;</span>
+<a id="__codelineno-34-16" name="__codelineno-34-16" href="#__codelineno-34-16"></a><span class="w">            </span><span class="n">start</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<a id="__codelineno-34-17" name="__codelineno-34-17" href="#__codelineno-34-17"></a><span class="w">        </span><span class="p">}</span>
+<a id="__codelineno-34-18" name="__codelineno-34-18" href="#__codelineno-34-18"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-34-19" name="__codelineno-34-19" href="#__codelineno-34-19"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<a id="__codelineno-34-20" name="__codelineno-34-20" href="#__codelineno-34-20"></a><span class="p">}</span>
+</code></pre></div>
+<p>Вызываем так:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="n">Span</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">numbers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">stackalloc</span><span class="w"> </span><span class="kt">int</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">TryParseCsv</span><span class="p">(</span><span class="s">"42,7,13,99"</span><span class="p">.</span><span class="n">AsSpan</span><span class="p">(),</span><span class="w"> </span><span class="n">numbers</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">n</span><span class="p">))</span>
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="p">{</span>
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">n</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a><span class="w">        </span><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="n">numbers</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<a id="__codelineno-35-6" name="__codelineno-35-6" href="#__codelineno-35-6"></a><span class="p">}</span>
+</code></pre></div>
+<p>Здесь нет ни одной строки, ни одного массива в куче. <code>line</code> - окно в существующую строку, <code>numbers</code> - буфер на стеке. Весь разбор это хождение по памяти плюс <code>int.TryParse</code>, который читает символы прямо из span.</p>
+<p>Сравните с наивным вариантом, который делает то же самое:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="k">static</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ParseCsvNaive</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">line</span><span class="p">)</span>
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="p">{</span>
+<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="w">    </span><span class="kt">var</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">();</span>
+<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="w">    </span><span class="k">foreach</span><span class="w"> </span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">field</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">Split</span><span class="p">(</span><span class="sc">','</span><span class="p">))</span><span class="w">   </span><span class="c1">// массив строк + строки</span>
+<a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a><span class="w">        </span><span class="n">result</span><span class="p">.</span><span class="n">Add</span><span class="p">(</span><span class="kt">int</span><span class="p">.</span><span class="n">Parse</span><span class="p">(</span><span class="n">field</span><span class="p">));</span><span class="w">           </span><span class="c1">// int.Parse(string)</span>
+<a id="__codelineno-36-6" name="__codelineno-36-6" href="#__codelineno-36-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span><span class="w">                              </span><span class="c1">// список в куче</span>
+<a id="__codelineno-36-7" name="__codelineno-36-7" href="#__codelineno-36-7"></a><span class="p">}</span>
+</code></pre></div>
+<p>На строке из 16 чисел наивный вариант создает массив из 16 строк, 16 объектов строк, список и его внутренний массив. Это десятки объектов и десятки килобайт мусора. Вариант со span - ноль. Разница в аллокациях измеряется не процентами, а порядками.</p>
+<p>Как убедиться, что вы действительно не аллоцируете. В тесте:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="kt">long</span><span class="w"> </span><span class="n">before</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GC</span><span class="p">.</span><span class="n">GetAllocatedBytesForCurrentThread</span><span class="p">();</span>
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a><span class="n">TryParseCsv</span><span class="p">(</span><span class="n">line</span><span class="p">,</span><span class="w"> </span><span class="n">numbers</span><span class="p">,</span><span class="w"> </span><span class="k">out</span><span class="w"> </span><span class="n">_</span><span class="p">);</span>
+<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="kt">long</span><span class="w"> </span><span class="n">after</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">GC</span><span class="p">.</span><span class="n">GetAllocatedBytesForCurrentThread</span><span class="p">();</span>
+<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a><span class="n">Console</span><span class="p">.</span><span class="n">WriteLine</span><span class="p">(</span><span class="s">$"allocated: {after - before} bytes"</span><span class="p">);</span>
+</code></pre></div>
+<p>На корректно написанном span-коде разница будет нулевой. Если нет, значит где-то спрятался <code>ToString</code>, <code>ToArray</code> или бокс.</p>
+<h2 id="_8">Что в итоге<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h2>
+<p><code>Span&lt;T&gt;</code> и <code>Memory&lt;T&gt;</code> - это не просто удобные обертки. Это способ сказать рантайму: "вот область памяти, работай с ней напрямую, не копируй". <code>Span&lt;T&gt;</code> дает максимальную скорость и живет на стеке, <code>Memory&lt;T&gt;</code> дает возможность сохранить окно и пережить <code>await</code> ценой одного поля-объекта. Вместе они убирают самый частый источник мусора в .NET - промежуточные массивы и строки.</p>
+<p>Когда в следующий раз увидите <code>Substring</code> в цикле или <code>new byte[]</code> под каждую операцию, вспомните: скорее всего, там достаточно пары <code>Slice</code> над <code>ReadOnlySpan</code>. И тогда GC скажет вам спасибо.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  К началу
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Нижний колонтитул" >
+        
+          
+          <a href="../01-gc-iznutri/" class="md-footer__link md-footer__link--prev" aria-label="Назад: 1. GC изнутри">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Назад
+              </span>
+              <div class="md-ellipsis">
+                1. GC изнутри
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../03-unsafe-i-memorymarshal/" class="md-footer__link md-footer__link--next" aria-label="Вперед: 3. Unsafe и MemoryMarshal">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Вперед
+              </span>
+              <div class="md-ellipsis">
+                3. Unsafe и MemoryMarshal
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "navigation.footer", "content.code.copy", "search.suggest", "search.highlight", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043e \u0432 \u0431\u0443\u0444\u0435\u0440", "clipboard.copy": "\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432 \u0431\u0443\u0444\u0435\u0440", "search.result.more.one": "\u0415\u0449\u0451 1 \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.more.other": "\u0415\u0449\u0451 # \u043d\u0430 \u044d\u0442\u043e\u0439 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435", "search.result.none": "\u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e", "search.result.one": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e 1 \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435", "search.result.other": "\u041d\u0430\u0439\u0434\u0435\u043d\u043e \u0441\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0439: #", "search.result.placeholder": "\u041d\u0430\u0447\u043d\u0438\u0442\u0435 \u043f\u0435\u0447\u0430\u0442\u0430\u0442\u044c \u0434\u043b\u044f \u043f\u043e\u0438\u0441\u043a\u0430", "search.result.term.missing": "\u041e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u0435\u0442", "select.version": "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u0432\u0435\u0440\u0441\u0438\u044e"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
