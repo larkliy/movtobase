@@ -1,0 +1,145 @@
+---
+title: "22. Кросс-компиляция и CI"
+description: "Zig собирает бинарники под другие платформы без отдельного тулчейна. Разбираем target triple, libc, упаковку и CI на GitHub Actions."
+course: zig
+lesson: 22
+part: 3
+duration: 5
+tags: ["cross-compilation", "ci"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Target triple
+
+Zig умеет собирать бинарники под другие платформы без отдельного кросс-компилятора. Один флаг `-Dtarget` задает архитектуру, ОС и ABI.
+
+```bash
+zig targets
+```
+
+Команда показывает доступные архитектуры, ОС и ABI. Основной формат target triple:
+
+```text
+<arch>-<os>-<abi>
+```
+
+Примеры.
+
+```bash
+zig build -Dtarget=x86_64-windows-gnu
+zig build -Dtarget=x86_64-linux-gnu
+zig build -Dtarget=aarch64-macos
+zig build -Dtarget=aarch64-linux-musl
+```
+
+`gnu` означает glibc, `musl` означает musl libc и статическую сборку, `msvc` означает MSVC ABI, `none` означает freestanding без ОС.
+
+## build.zig
+
+```zig
+const target = b.standardTargetOptions(.{});
+const optimize = b.standardOptimizeOption(.{});
+```
+
+`standardTargetOptions` принимает `-Dtarget` и `-Dcpu`. Явный target задает `resolveTargetQuery`.
+
+```zig
+const target = b.resolveTargetQuery(.{
+    .cpu_arch = .x86_64,
+    .os_tag = .linux,
+    .abi = .musl,
+});
+```
+
+## Кросс-сборка с C
+
+`addCSourceFile` и `link_libc` работают при кросс-компиляции. Zig использует свой clang и libc для target. Для системных библиотек могут понадобиться `-L`, `-l` и sysroot.
+
+```bash
+zig build -Dtarget=aarch64-linux-musl -Doptimize=ReleaseFast
+```
+
+## Упаковка
+
+```bash
+zig build -Doptimize=ReleaseFast --prefix dist
+```
+
+Артефакты окажутся в `dist/bin`. Для библиотеки.
+
+```bash
+zig build-lib math.zig -dynamic -O ReleaseFast
+```
+
+На Windows получится `.dll` и `.lib` импорт, на Linux `.so`, на macOS `.dylib`.
+
+## CI на GitHub Actions
+
+```yaml
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.0
+      - run: zig build test
+      - run: zig build -Doptimize=ReleaseFast
+```
+
+`mlugg/setup-zig` устанавливает Zig. Если action недоступен, скачай архив с ziglang.org и распакуй в `PATH`. Версию фиксируй, иначе CI сломается на новом master.
+
+Матрица target позволяет собирать один проект под разные платформы на одном runner.
+
+```yaml
+      - run: zig build -Dtarget=x86_64-linux-gnu -Doptimize=ReleaseSafe
+      - run: zig build -Dtarget=aarch64-linux-musl -Doptimize=ReleaseSafe
+```
+
+Тесты при кросс-сборке не запускаются, потому что чужой бинарник нельзя выполнить. Тесты гоняй на нативной платформе.
+
+## Что под капотом
+
+`std.Target` в `lib/std/Target.zig` описывает архитектуры, ОС, ABI и CPU features. `std.Build.ResolvedTarget` это target и query, разрешенные build-системой.
+
+`standardTargetOptions` в `lib/std/Build.zig` читает `-Dtarget` и `-Dcpu`, затем возвращает `ResolvedTarget`. `b.resolveTargetQuery` задает target программно.
+
+`Step.Compile` передает target компилятору. Компилятор выбирает backend, libc, linker и runtime. Для `freestanding` нет ОС и libc. Для `linux-musl` Zig берет встроенную musl. Для `windows-gnu` компилятор использует mingw-w64.
+
+CI это обычные shell-команды поверх `zig build`. Отдельного CI-плагина нет. Кэшируй `~/.cache/zig` и `zig-cache`, чтобы не пересобирать все с нуля.
+
+## Где ломается
+
+**Target triple должен быть полным.** `-Dtarget=linux` не сработает, нужен `<arch>-<os>-<abi>`.
+
+**libc не всегда доступна.** Для musl Zig несет свою реализацию. Для glibc может понадобиться версия не новее целевой. Для старых систем выбирай старую glibc.
+
+**Динамические библиотеки.** Кросс-сборка с `-lfoo` требует `libfoo` под target. Иначе линковка упадет.
+
+**C-заголовки зависят от target.** `translate-c` запускается с тем же target и флагами. Иначе layout разъедется.
+
+**Тесты не запускаются на чужой платформе.** `zig build test -Dtarget=...` соберет тестовый бинарник, но выполнить его на другой ОС нельзя.
+
+**macOS требует подписи для распространения.** Кросс-сборка создаст бинарник, но для запуска может понадобиться codesign и нотаризация.
+
+**Windows ABI различается.** `windows-gnu` и `windows-msvc` это разные ABI. Библиотека, собранная под MSVC, не обязательно подойдет для gnu.
+
+**Версия Zig в CI должна быть зафиксирована.** Master меняется каждую неделю. Курс и проект фиксируют `0.17.0`.
+
+**Кэш CI может скрывать проблемы.** Чистая сборка иногда ломается иначе. Периодически запускай без кэша.
+
+**Кросс-компиляция не заменяет тестирование.** Бинарник может собраться и не работать из-за syscalls, путей или кодировок. Проверяй на целевой ОС.
+
+<TaskForLesson lesson="22-kross-kompilyatsiya-i-ci" />

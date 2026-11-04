@@ -1,0 +1,157 @@
+---
+title: "13. Тесты и отладка"
+description: "Тесты в Zig это блоки test рядом с кодом. Разбираем expect, тестовый аллокатор, проверку утечек и отладку через std.debug."
+course: zig
+lesson: 13
+part: 2
+duration: 5
+tags: ["testing", "debugging"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Тесты
+
+Компилятор проверяет типы и безопасность, но не знает, правильно ли функция считает налог и не падает ли парсер на пустом файле. Для этого нужны тесты.
+
+Блок `test` это часть языка, а не отдельный фреймворк. Он компилируется в тестовую сборку и имеет доступ к приватным функциям модуля.
+
+```zig
+const std = @import("std");
+const testing = std.testing;
+
+fn sum(xs: []const i32) i32 {
+    var total: i32 = 0;
+    for (xs) |x| total += x;
+    return total;
+}
+
+test "sum" {
+    try testing.expectEqual(@as(i32, 6), sum(&.{ 1, 2, 3 }));
+    try testing.expectEqual(@as(i32, 0), sum(&.{}));
+}
+
+fn fail() error{OutOfMemory}!void {
+    return error.OutOfMemory;
+}
+
+test "expectError" {
+    try testing.expectError(error.OutOfMemory, fail());
+}
+```
+
+`test "name"` задает имя блока. Компилятор использует имя в выводе и для фильтрации. `testing.expect` проверяет условие. `expectEqual` сравнивает значения и требует совпадения типов. `expectEqualStrings` сравнивает строки. `expectError` проверяет конкретную ошибку.
+
+Проверки возвращают `!void`, поэтому перед ними стоит `try`. Если проверка не прошла, тест завершается с ошибкой.
+
+Запуск.
+
+```bash
+zig test src/main.zig
+zig test src/main.zig --test-filter sum
+zig build test
+```
+
+`--test-filter` запускает тесты, в имени которых есть подстрока.
+
+## Тестовый аллокатор
+
+`std.testing.allocator` отслеживает выделения и проверяет, что к концу теста вся память освобождена.
+
+```zig
+test "no leaks" {
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(testing.allocator);
+
+    try list.appendSlice(testing.allocator, "hello");
+    try testing.expectEqualStrings("hello", list.items);
+}
+```
+
+Если забыть `deinit`, тест упадет с отчетом об утечке. Аллокатор знает размер и стек вызова для каждого выделения.
+
+Проверка обработки `OutOfMemory` делается через `checkAllAllocationFailures`.
+
+```zig
+test "allocation failures" {
+    try testing.checkAllAllocationFailures(testing.allocator, testFn, .{});
+}
+
+fn testFn(allocator: std.mem.Allocator) !void {
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(allocator);
+    try list.appendSlice(allocator, "hello");
+}
+```
+
+Функция запускает `testFn` несколько раз. На каждом запуске очередное выделение терпит неудачу, а тест проверяет, что код корректно откатывает состояние и освобождает ресурсы.
+
+## Тесты в build.zig
+
+```zig
+const tests = b.addTest(.{ .root_module = mathx });
+const run_tests = b.addRunArtifact(tests);
+const test_step = b.step("test", "Run tests");
+test_step.dependOn(&run_tests.step);
+```
+
+`addTest` создает тестовый бинарник из модуля. `addRunArtifact` запускает его. `b.step("test", ...)` делает шаг доступным как `zig build test`.
+
+## Отладка
+
+`std.debug.print` пишет в stderr и не требует аллокатора.
+
+```zig
+std.debug.print("value={d}\n", .{value});
+```
+
+Точку останова ставит `@breakpoint()`.
+
+```zig
+@breakpoint();
+```
+
+Под отладчиком выполнение остановится в этом месте. Без отладчика `@breakpoint` приводит к trap.
+
+Трассировка ошибки печатается так.
+
+```zig
+std.debug.dumpStackTrace(@errorReturnTrace().?);
+```
+
+Это помогает, когда ошибка уже обработана, но непонятно, откуда она пришла. В release-режиме трассировка может быть отключена.
+
+## Что под капотом
+
+`std.testing` лежит в `lib/std/testing.zig`. Проверки устроены просто: сравнивают значения и возвращают ошибку, если условие не выполнено.
+
+```zig
+pub fn expect(ok: bool) !void
+pub fn expectEqual(expected: anytype, actual: anytype) !void
+pub fn expectEqualStrings(expected: []const u8, actual: []const u8) !void
+pub fn expectError(expected_error: anyerror, actual_error_union: anytype) !void
+```
+
+Тестовый аллокатор это обертка над `DebugAllocator` с включенной проверкой утечек. Поэтому `defer` и тесты хорошо сочетаются: аллокатор сам сообщает, что ресурс не освободили.
+
+`b.addTest` создает `Step.Compile` с `kind = .test`. В тестовый бинарник входит сгенерированный runner, который вызывает все блоки `test` из корневого модуля и его импортов. Ты не регистрируешь тесты вручную, достаточно сделать файл доступным из корневого модуля.
+
+## Где ломается
+
+**`expectEqual` требует одинаковый тип.** `expectEqual(6, sum(...))` может не собраться, если `sum` возвращает `i32`, а `6` имеет тип `comptime_int`. Пиши `@as(i32, 6)`.
+
+**Тесты не запускаются сами.** `zig build` не запускает тесты, если в `build.zig` нет шага `test`. В CI вызывай `zig build test` явно.
+
+**Тестовый аллокатор видит только свои выделения.** Память из `page_allocator` или C `malloc` вне его контроля. Для тестов передавай `testing.allocator` в код.
+
+**`defer` выполняет функции в обратном порядке.** Если ресурсы зависят друг от друга, порядок объявления `defer` важен.
+
+**`@breakpoint` не работает без отладчика.** В обычном запуске это trap, а не пауза. Для логирования используй `std.debug.print`.
+
+**Тесты не должны повторять реализацию.** Проверяй контракты, границы и ошибки. Тест, который повторяет тело функции, ломается вместе с ней и ничего не доказывает.
+
+**Тесты в импортируемых модулях.** Блоки `test` компилируются, только если модуль входит в тестовую сборку. Отдельный файл с тестами ты добавляешь в `addTest` или импортируешь из корневого файла.
+
+**Release-режим меняет поведение проверок.** Тесты, которые ожидают панику при переполнении или выходе за границы, в `ReleaseFast` могут не сработать. Запускай их в Debug и `ReleaseSafe`.
+
+<TaskForLesson lesson="13-testy-i-otladka" />

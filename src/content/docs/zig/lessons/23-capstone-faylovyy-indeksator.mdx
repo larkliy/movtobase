@@ -1,0 +1,270 @@
+---
+title: "23. Capstone: файловый индексатор"
+description: "Финальный проект: CLI-индексатор файлов на std.Io, StringHashMap и ArrayList. Собираем аллокаторы, тесты и build.zig вместе."
+course: zig
+lesson: 23
+part: 3
+duration: 5
+tags: ["capstone", "cli"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Задача
+
+Финальный проект собирает темы курса в одну программу. Утилита `indexer <dir>` считает файлы по расширениям и суммарный размер. В ней используются `std.process.Init`, `std.Io`, рекурсивный обход каталога, `StringHashMap`, `ArrayList`, аллокаторы, `defer`, сортировка, обработка ошибок и `build.zig`.
+
+Структура проекта.
+
+```text
+indexer/
+├── build.zig
+├── build.zig.zon
+└── src/
+    ├── main.zig
+    └── indexer.zig
+```
+
+`src/indexer.zig` содержит логику и не зависит от `main`. Поэтому ее легко тестировать.
+
+```zig
+const std = @import("std");
+
+pub const ExtCount = struct {
+    ext: []const u8,
+    files: usize,
+    bytes: usize,
+};
+
+pub const Stats = struct {
+    files: usize = 0,
+    bytes: usize = 0,
+    by_ext: std.StringHashMap(ExtCount),
+
+    pub fn init(gpa: std.mem.Allocator) Stats {
+        return .{ .by_ext = std.StringHashMap(ExtCount).init(gpa) };
+    }
+
+    pub fn deinit(self: *Stats, gpa: std.mem.Allocator) void {
+        var keys = self.by_ext.keyIterator();
+        while (keys.next()) |key| gpa.free(key.*);
+        self.by_ext.deinit();
+    }
+};
+
+fn shouldSkip(name: []const u8) bool {
+    return std.mem.eql(u8, name, ".zig-cache") or
+        std.mem.eql(u8, name, "zig-out") or
+        std.mem.eql(u8, name, ".git");
+}
+
+pub fn extension(name: []const u8) []const u8 {
+    const ext = std.fs.path.extension(name);
+    return if (ext.len == 0) "<none>" else ext;
+}
+
+pub fn scan(io: std.Io, gpa: std.mem.Allocator, root: []const u8) !Stats {
+    var stats = Stats.init(gpa);
+    errdefer stats.deinit(gpa);
+
+    var dir = try std.Io.Dir.cwd().openDir(io, root, .{ .iterate = true });
+    defer dir.close(io);
+
+    var walker = try dir.walk(gpa);
+    defer walker.deinit();
+
+    while (try walker.next(io)) |entry| {
+        if (entry.kind == .directory) {
+            if (shouldSkip(entry.basename)) walker.leave(io);
+            continue;
+        }
+        if (entry.kind != .file) continue;
+
+        const stat = try entry.dir.statFile(io, entry.basename, .{});
+        const ext = extension(entry.basename);
+
+        const key = try gpa.dupe(u8, ext);
+        const gop = try stats.by_ext.getOrPut(key);
+        if (gop.found_existing) {
+            gpa.free(key);
+        } else {
+            gop.value_ptr.* = .{ .ext = key, .files = 0, .bytes = 0 };
+        }
+        gop.value_ptr.files += 1;
+        gop.value_ptr.bytes += stat.size;
+
+        stats.files += 1;
+        stats.bytes += stat.size;
+    }
+
+    return stats;
+}
+
+pub fn lessThan(_: void, a: ExtCount, b: ExtCount) bool {
+    if (a.bytes != b.bytes) return a.bytes > b.bytes;
+    return std.mem.lessThan(u8, a.ext, b.ext);
+}
+
+test "extension" {
+    try std.testing.expectEqualStrings(".zig", extension("main.zig"));
+    try std.testing.expectEqualStrings("<none>", extension("Makefile"));
+}
+
+test "sorting" {
+    var items = [_]ExtCount{
+        .{ .ext = ".c", .files = 1, .bytes = 50 },
+        .{ .ext = ".zig", .files = 2, .bytes = 100 },
+    };
+    std.mem.sort(ExtCount, &items, {}, lessThan);
+    try std.testing.expectEqualStrings(".zig", items[0].ext);
+}
+```
+
+`scan` открывает каталог с флагом `.iterate`. `walker.next(io)` возвращает записи рекурсивно. Для каталогов, которые нужно пропустить, ты вызываешь `walker.leave(io)`. Для файлов `statFile` возвращает размер, а расширение копируется в кучу через `dupe`, потому что `entry.basename` указывает во внутренний буфер walker и меняется на следующей итерации.
+
+`getOrPut` ищет ключ. Если ключ найден, новая копия освобождается. Если нет, структура сохраняет копию и инициализирует счетчики.
+
+`lessThan` сортирует по убыванию байтов, а при равенстве по имени расширения.
+
+`src/main.zig` это CLI-обертка.
+
+```zig
+const std = @import("std");
+const indexer = @import("indexer");
+
+pub fn main(init: std.process.Init) !u8 {
+    var out_buf: [8192]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &out_buf);
+    const gpa = init.gpa;
+
+    var args = try std.process.Args.Iterator.initAllocator(init.minimal.args, gpa);
+    defer args.deinit();
+    _ = args.next();
+
+    const root = args.next() orelse {
+        try out.interface.print("usage: indexer <dir>\n", .{});
+        try out.flush();
+        return 2;
+    };
+
+    var stats = indexer.scan(init.io, gpa, root) catch |err| {
+        try out.interface.print("scan failed: {s}\n", .{@errorName(err)});
+        try out.flush();
+        return 1;
+    };
+    defer stats.deinit(gpa);
+
+    var list: std.ArrayList(indexer.ExtCount) = .empty;
+    defer list.deinit(gpa);
+
+    var it = stats.by_ext.iterator();
+    while (it.next()) |kv| try list.append(gpa, kv.value_ptr.*);
+    std.mem.sort(indexer.ExtCount, list.items, {}, indexer.lessThan);
+
+    try out.interface.print("files: {d}, bytes: {d}\n", .{ stats.files, stats.bytes });
+    for (list.items) |item| {
+        try out.interface.print("{s}: files={d} bytes={d}\n", .{ item.ext, item.files, item.bytes });
+    }
+    try out.flush();
+    return 0;
+}
+```
+
+`args.next()` пропускает имя программы. Следующий аргумент ты считаешь каталогом. Коды выхода: `2` для неправильных аргументов, `1` для ошибки сканирования, `0` для успеха.
+
+`build.zig`:
+
+```zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const indexer_module = b.addModule("indexer", .{
+        .root_source_file = b.path("src/indexer.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "indexer",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "indexer", .module = indexer_module },
+            },
+        }),
+    });
+    b.installArtifact(exe);
+
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    run_cmd.addPassthruArgs();
+    const run_step = b.step("run", "Run the indexer");
+    run_step.dependOn(&run_cmd.step);
+
+    const tests = b.addTest(.{ .root_module = indexer_module });
+    const run_tests = b.addRunArtifact(tests);
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&run_tests.step);
+}
+```
+
+`build.zig.zon` создается через `zig init` или добавляется вручную.
+
+```zig
+.{
+    .name = .indexer,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.17.0",
+    .paths = .{""},
+    .fingerprint = 0x2d95d8c4eeb67f95,
+}
+```
+
+`fingerprint` зависит от пакета. Проще взять значение из ошибки компилятора или создать проект через `zig init`.
+
+Запуск.
+
+```bash
+zig build test
+zig build run -- .
+zig build -Doptimize=ReleaseFast
+```
+
+## Что под капотом
+
+`std.Io.Dir.walk` в `lib/std/Io/Dir.zig` возвращает `Walker`, который рекурсивно обходит каталог. `Walker.next` заходит в подкаталоги, `leave` пропускает ненужное дерево. `Walker.Entry` содержит `dir`, `basename`, `path` и `kind`. `dir` это открытый каталог, в котором лежит запись, поэтому `statFile` не требует склейки длинного пути.
+
+`std.StringHashMap` в `lib/std/hash_map.zig` хранит ключи и значения в открытой адресации. Ключ не копируется, `getOrPut` доверяет переданному указателю. Поэтому в `scan` расширение копируется через `dupe`. Если ключ уже существует, новая копия освобождается.
+
+`std.Io.Dir.statFile` возвращает `Stat` с полем `size`. Для симлинков и специальных файлов поведение зависит от платформы. В проекте считаются только `.file`.
+
+`std.process.Args.Iterator.initAllocator` нужен на Windows, потому что аргументы приходят в WTF-16 и требуют преобразования. На POSIX ты можешь взять `init`, но `initAllocator` переносим.
+
+## Где ломается
+
+**Ключи HashMap должны жить дольше таблицы.** `entry.basename` указывает во внутренний буфер walker и меняется на следующей итерации. Без `dupe` таблица будет содержать мусор.
+
+**Освобождай только новые ключи.** При `found_existing` копия уже не нужна. Если освободить существующий ключ, таблица сломается.
+
+**`Walker.next` уже зашел в каталог.** Чтобы пропустить `.git`, вызови `walker.leave(io)` сразу после получения directory entry.
+
+**`entry.dir` действителен до следующего `next`.** Не сохраняй его в долгоживущую структуру. Для статистики сохраняй только данные.
+
+**`statFile` может упасть.** Нет прав, файл удалили, симлинк битый. В продакшене такие ошибки логируют и продолжают. В учебной версии ошибка возвращается наверх.
+
+**Размер файла не равен размеру на диске.** `stat.size` это логический размер. Для реального места нужны блоки и кластеры, а это зависит от платформы.
+
+**Расширение не определяет тип файла.** `.tar.gz` даст `.gz`, `Makefile` даст `<none>`. Для более точной классификации нужен MIME или список известных имен.
+
+**Компаратор задает порядок.** Для убывания верни `a.bytes > b.bytes`. При равенстве добавлено сравнение по имени.
+
+**Коды выхода важны для shell.** `2` означает неправильные аргументы, `1` ошибку сканирования, `0` успех.
+
+**Debug-сборка медленнее.** На больших деревьях индексер заметно быстрее в `-Doptimize=ReleaseFast`.
+
+<TaskForLesson lesson="23-capstone-faylovyy-indeksator" />

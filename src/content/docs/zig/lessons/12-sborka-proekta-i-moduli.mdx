@@ -1,0 +1,215 @@
+---
+title: "12. Сборка проекта и модули"
+description: "build.zig это Zig-программа, которая строит граф сборки. Разбираем модули, импорты, зависимости и C-код в проекте."
+course: zig
+lesson: 12
+part: 2
+duration: 5
+tags: ["build.zig", "modules"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Структура проекта
+
+Один файл `main.zig` подходит для hello world. Реальный проект состоит из модулей, тестов и зависимостей. В C для этого нужны Make, CMake или Meson и отдельный линкер. В Zig сборку описывает `build.zig`, написанный на самом Zig.
+
+```text
+proj/
+├── build.zig
+├── build.zig.zon
+└── src/
+    ├── main.zig
+    └── mathx.zig
+```
+
+`build.zig.zon` описывает пакет.
+
+```zig
+.{
+    .name = .proj,
+    .version = "0.1.0",
+    .minimum_zig_version = "0.17.0",
+    .paths = .{""},
+    .fingerprint = 0x520c3c9019b7dcad,
+}
+```
+
+`fingerprint` обязателен в 0.17. Команда `zig init` создает проект с корректным значением. Если добавляешь поле вручную, возьми значение из текста ошибки компилятора.
+
+`build.zig` описывает шаги сборки.
+
+```zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const mathx = b.addModule("mathx", .{
+        .root_source_file = b.path("src/mathx.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const exe = b.addExecutable(.{
+        .name = "proj",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "mathx", .module = mathx },
+            },
+        }),
+    });
+    b.installArtifact(exe);
+
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    run_cmd.addPassthruArgs();
+    const run_step = b.step("run", "Run the app");
+    run_step.dependOn(&run_cmd.step);
+
+    const tests = b.addTest(.{ .root_module = mathx });
+    const run_tests = b.addRunArtifact(tests);
+    const test_step = b.step("test", "Run tests");
+    test_step.dependOn(&run_tests.step);
+}
+```
+
+`src/mathx.zig` содержит функцию и тест.
+
+```zig
+pub fn square(x: i32) i32 {
+    return x * x;
+}
+
+test "square" {
+    const std = @import("std");
+    try std.testing.expectEqual(@as(i32, 9), square(3));
+}
+```
+
+`src/main.zig` импортирует модуль по имени.
+
+```zig
+const std = @import("std");
+const mathx = @import("mathx");
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [1024]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+    try out.interface.print("square(12)={d}\n", .{mathx.square(12)});
+    try out.flush();
+}
+```
+
+Команды сборки.
+
+```bash
+zig build
+zig build run
+zig build test
+zig build -Doptimize=ReleaseFast
+zig build -Dtarget=x86_64-linux-gnu
+```
+
+`zig build` собирает и устанавливает артефакт в `zig-out/`. `zig build run` запускает приложение. `zig build test` запускает тесты.
+
+`run_cmd.addPassthruArgs()` передает аргументы после `--` запускаемой программе. Старое поле `b.args` удалено, поэтому примеры с `if (b.args) |args| run_cmd.addArgs(args)` ты переписываешь на `addPassthruArgs()`.
+
+## Модули и импорты
+
+`b.addModule` создает модуль, который виден другим пакетам. `b.createModule` создает приватный модуль внутри сборки. Исполняемый файл получает `root_module`, а список `imports` связывает имя импорта с модулем.
+
+Имя в `imports` должно совпадать со строкой в `@import`. Если модуль называется `mathx`, а в коде написано `@import("math")`, компилятор не найдет модуль и сборка упадет.
+
+Модуль это не отдельный файл, а корневой файл плюс настройки. Все `pub`-декларации корневого файла видны снаружи. Если модуль состоит из нескольких файлов, корневой файл реэкспортирует нужные.
+
+```zig
+pub const parser = @import("parser.zig");
+pub const lexer = @import("lexer.zig");
+```
+
+## Зависимости
+
+Пакеты добавляются в `build.zig.zon`.
+
+```zig
+.dependencies = .{
+    .known_folders = .{
+        .url = "https://github.com/ziglibs/known-folders/archive/<commit>.tar.gz",
+        .hash = "known_folders-0.0.0-...",
+    },
+},
+```
+
+Хэш получают командой `zig fetch --save <url>`. Дальше модуль зависимости добавляется в `imports` через `b.dependency(...).module(...)`. Точный API зависит от пакета, но принцип один: зависимость это модуль, а не набор заголовков и `.lib`-файлов.
+
+## C-модули
+
+В 0.17 `@cImport` удален. Заголовок C превращается в Zig-модуль шагом `b.addTranslateC`.
+
+```zig
+const translate = b.addTranslateC(.{
+    .root_source_file = b.path("src/demo.h"),
+    .target = target,
+    .optimize = optimize,
+});
+const c_module = translate.createModule();
+
+const exe = b.addExecutable(.{
+    .name = "app",
+    .root_module = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "c", .module = c_module },
+        },
+    }),
+});
+exe.root_module.addCSourceFile(.{ .file = b.path("src/demo.c") });
+exe.root_module.link_libc = true;
+```
+
+C-исходник добавляется через `addCSourceFile`, libc подключается через `link_libc`. Подробнее в уроке про C interop.
+
+## Что под капотом
+
+`build.zig` это обычная программа. Build-система вызывает `build`, передает `*std.Build`, а функция строит граф шагов.
+
+```zig
+pub fn addExecutable(b: *Build, options: ExecutableOptions) *Step.Compile
+pub fn addModule(b: *Build, name: []const u8, options: Module.CreateOptions) *Module
+pub fn createModule(b: *Build, options: Module.CreateOptions) *Module
+pub fn addTest(b: *Build, options: TestOptions) *Step.Compile
+pub fn addTranslateC(b: *Build, options: Step.TranslateC.Options) *Step.TranslateC
+```
+
+`b.path("src/main.zig")` создает `LazyPath`. Путь разрешается при выполнении графа. Build-система отслеживает, какие файлы читает шаг, и использует это для кэша.
+
+Шаги лежат в `lib/std/Build/Step/`. `Step.Compile` компилирует, `Step.Run` запускает, `Step.TranslateC` генерирует Zig-код из заголовка. Каждый шаг объявляет входы и выходы, поэтому повторный `zig build` не пересобирает неизменившееся.
+
+`lib/std/Build/Module.zig` хранит `root_source_file`, `target`, `optimize`, `imports`, `include_dirs`, `link_libc`. Эти поля задают модуль.
+
+## Где ломается
+
+**Нет fingerprint.** В 0.17 `build.zig.zon` без `fingerprint` не принимается. Создай проект через `zig init` или возьми значение из ошибки.
+
+**`b.args` больше нет.** Используй `run_cmd.addPassthruArgs()`.
+
+**Импорт не объявлен.** `@import("mathx")` работает, только если `mathx` есть в `imports` корневого модуля. Файл рядом с `main.zig` сам по себе модуль не создает.
+
+**`addModule` и `createModule` различаются.** Первый публикует модуль, второй создает приватный. Для исполняемого файла обычно нужен `createModule`.
+
+**Пути считаются от корня проекта.** `b.path("src/main.zig")` разрешается от каталога с `build.zig`, а не от текущего каталога терминала. `std.fs.cwd()` в build-скрипте использовать не стоит.
+
+**`build.zig` выполняется при сборке.** Ты не можешь читать в нем runtime-данные, зато можешь генерировать файлы, запускать инструменты и строить граф. Ошибка в `build.zig` это ошибка сборки.
+
+**Кэш скрывает изменения.** Если кажется, что правка не применилась, проверь, входит ли файл в граф. `zig build --summary all` показывает шаги.
+
+**Зависимость с URL требует хэш.** Без хэша сборка невоспроизводима, и Zig откажется ее выполнять. `zig fetch --save` обновляет `build.zig.zon`.
+
+<TaskForLesson lesson="12-sborka-proekta-i-moduli" />

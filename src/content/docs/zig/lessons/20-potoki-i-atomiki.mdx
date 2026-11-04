@@ -1,0 +1,117 @@
+---
+title: "20. Потоки и атомики"
+description: "std.Thread, std.Io.Mutex и std.atomic.Value дают потоки и синхронизацию без скрытой магии. Разбираем порядок памяти и гонки."
+course: zig
+lesson: 20
+part: 3
+duration: 5
+tags: ["threads", "atomics"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Потоки
+
+`std.Thread.spawn` создает поток, `join` ждет завершения.
+
+```zig
+const std = @import("std");
+
+fn worker(n: usize) void {
+    var sum: usize = 0;
+    for (0..n) |i| sum += i;
+    std.debug.print("sum={d}\n", .{sum});
+}
+
+pub fn main() !void {
+    const t = try std.Thread.spawn(.{}, worker, .{100});
+    t.join();
+}
+```
+
+`spawn` принимает конфигурацию, функцию и кортеж аргументов. `join` освобождает ресурсы потока. Если не вызвать `join` или `detach`, ресурсы могут утечь.
+
+## Мьютекс
+
+В 0.17 синхронизация переехала в `std.Io`. `lock` и `unlock` принимают `io`.
+
+```zig
+var mutex: std.Io.Mutex = .init;
+var counter: u64 = 0;
+
+fn increment(io: std.Io, n: usize) void {
+    for (0..n) |_| {
+        mutex.lock(io) catch return;
+        defer mutex.unlock(io);
+        counter += 1;
+    }
+}
+
+pub fn main(init: std.process.Init) !void {
+    const t1 = try std.Thread.spawn(.{}, increment, .{ init.io, 100_000 });
+    const t2 = try std.Thread.spawn(.{}, increment, .{ init.io, 100_000 });
+    t1.join();
+    t2.join();
+    std.debug.print("counter={d}\n", .{counter});
+}
+```
+
+`lock` возвращает `Cancelable!void`, поэтому нужен `try` или `catch`. `defer mutex.unlock(io)` освобождает мьютекс при выходе из итерации.
+
+## Атомики
+
+```zig
+var counter = std.atomic.Value(u64).init(0);
+
+fn increment(n: usize) void {
+    for (0..n) |_| {
+        _ = counter.fetchAdd(1, .monotonic);
+    }
+}
+```
+
+`std.atomic.Value(T)` хранит значение, операции над которым неделимы. `fetchAdd` возвращает предыдущее значение. Порядок памяти задается вторым аргументом: `.monotonic` дает атомарность, `.acquire` и `.release` задают синхронизацию, `.seq_cst` самый строгий.
+
+Для простого счетчика `.monotonic` достаточно. Порядок относительно других данных не важен, тебе важно только не потерять обновления.
+
+## RwLock и Condition
+
+`std.Io.RwLock` разрешает много читателей или одного писателя. `std.Io.Condition` будит потоки при изменении состояния. Оба принимают `io` в методах. Они нужны, когда мьютекса мало: для очереди задач, кэша или ожидания события.
+
+## Пул потоков
+
+`std.Thread.Pool` переиспользует потоки вместо создания нового на каждую задачу. API проверяй в `lib/std/Thread/Pool.zig` установленной версии. В 0.17 он может отличаться от примеров в статьях.
+
+## Что под капотом
+
+`std.Thread` в `lib/std/Thread.zig` оборачивает нативные потоки: `pthread` на POSIX, `CreateThread` на Windows, `clone` на Linux без libc. `SpawnConfig` задает стек, имя и приоритет.
+
+`std.Io.Mutex` реализован через `std.Io.Threaded`. Внутри лежит атомарный флаг и futex или condition variable, в зависимости от ОС. `lock` принимает `io`, потому что ожидание может быть отменено. `unlock` тоже принимает `io`, чтобы разбудить ожидающие потоки через реализацию I/O.
+
+`std.atomic.Value(T)` в `lib/std/atomic.zig` оборачивает `@atomicLoad`, `@atomicStore`, `@atomicRmw` и `@cmpxchg`. Порядок памяти передается в builtins и проверяется компилятором.
+
+`std.Io.Condition` использует futex или condvar и принимает `io`. Реализация может быть асинхронной, поэтому это не просто `pthread_cond_t`.
+
+## Где ломается
+
+**`std.Thread.Mutex` больше нет.** В 0.17 бери `std.Io.Mutex`, а `lock` и `unlock` требуют `io`.
+
+**`lock` может вернуть `error.Canceled`.** Если поток отменен, завершись корректно, а не продолжай с незаблокированным мьютексом.
+
+**`defer unlock` ставят сразу после `lock`.** Иначе ранний `return` оставит мьютекс заблокированным.
+
+**Атомики не защищают инварианты из нескольких полей.** Если `x` и `y` должны меняться согласованно, двух атомарных операций недостаточно. Нужен мьютекс или lock-free структура с продуманным протоколом.
+
+**Порядок памяти важен.** `.monotonic` не гарантирует видимость других данных. Для передачи данных между потоками используются `.release` и `.acquire` или `.seq_cst`.
+
+**Гонка данных это UB.** Даже если код «на практике работает», компилятор может переставить чтение и запись. Все разделяемые изменяемые данные должны быть защищены.
+
+**`join` обязателен.** Если поток завершился, но не был присоединен или отсоединен, ресурсы могут утечь. Для fire-and-forget вызывай `detach`, но тогда результат уже не узнать.
+
+**Поток на каждую задачу дорог.** Создание потока стоит дороже, чем обработка мелкой задачи. Для многих задач нужен пул или `std.Io.Group`.
+
+**`std.Io` и `std.Thread` это разные уровни.** `Io.concurrent` может использовать пул и асинхронность, `std.Thread` создает именно поток ОС. Выбор зависит от задачи.
+
+**Отладка гонок сложна.** ThreadSanitizer, логирование и минимизация общего состояния помогают. Тесты с потоками должны быть детерминированными или многократными.
+
+<TaskForLesson lesson="20-potoki-i-atomiki" />

@@ -1,0 +1,179 @@
+---
+title: "15. Comptime и рефлексия"
+description: "comptime выполняет код при компиляции. Разбираем generic-функции, @typeInfo, inline for и проверки через @compileError."
+course: zig
+lesson: 15
+part: 2
+duration: 5
+tags: ["comptime", "reflection"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Comptime
+
+В C++ шаблоны образуют отдельный подъязык с собственными ошибками и синтаксисом. В Zig метапрограммирование не отделено. `comptime` означает, что выражение вычисляется при компиляции. `@typeInfo` возвращает обычное значение, с которым работает обычный код.
+
+```zig
+const std = @import("std");
+
+fn maxOf(comptime T: type, a: T, b: T) T {
+    return if (a > b) a else b;
+}
+
+const Point = struct { x: i32, y: i32 };
+
+fn fieldCount(comptime T: type) comptime_int {
+    return @typeInfo(T).@"struct".field_names.len;
+}
+
+pub fn main() !void {
+    std.debug.print("{d}\n", .{maxOf(u8, 3, 7)});
+    std.debug.print("fields={d}\n", .{fieldCount(Point)});
+}
+```
+
+`comptime T: type` это параметр, значение которого известно компилятору. Для каждого `T` создается отдельная специализация `maxOf`. `comptime_int` означает, что результат тоже известен при компиляции.
+
+`@typeInfo(T).@"struct"` возвращает описание структуры. Ключевое слово `struct` зарезервировано, поэтому поле записывается через `@"struct"`.
+
+## anytype
+
+`anytype` означает, что тип выводится из аргумента.
+
+```zig
+fn identity(value: anytype) @TypeOf(value) {
+    return value;
+}
+```
+
+`@TypeOf(value)` возвращает тип выражения. `identity` сохраняет тип аргумента. Так работают `std.mem.eql`, `std.json.fmt` и функции форматирования.
+
+## Рефлексия по полям
+
+```zig
+fn dump(comptime T: type, value: T) void {
+    inline for (@typeInfo(T).@"struct".field_names) |name| {
+        std.debug.print("{s}={any}\n", .{ name, @field(value, name) });
+    }
+}
+```
+
+`inline for` разворачивается при компиляции. Для каждого поля создается отдельная итерация. `@field(value, name)` обращается к полю по comptime-имени. Для `Point{ .x = 1, .y = 2 }` функция напечатает `x=1` и `y=2`.
+
+## Проверки при компиляции
+
+```zig
+fn requireInt(comptime T: type) void {
+    switch (@typeInfo(T)) {
+        .int => {},
+        else => @compileError("expected an integer type"),
+    }
+}
+
+fn clamp(comptime T: type, value: T, min: T, max: T) T {
+    requireInt(T);
+    return @max(min, @min(value, max));
+}
+```
+
+`@compileError` останавливает сборку с указанным сообщением. Это понятнее, чем ошибка где-то внутри инстанцирования шаблона.
+
+## Generic-структуры
+
+```zig
+fn Vec(comptime T: type) type {
+    return struct {
+        x: T,
+        y: T,
+
+        const Self = @This();
+
+        fn add(a: Self, b: Self) Self {
+            return .{ .x = a.x + b.x, .y = a.y + b.y };
+        }
+    };
+}
+
+const Vec2i = Vec(i32);
+const v = Vec2i.add(.{ .x = 1, .y = 2 }, .{ .x = 3, .y = 4 });
+```
+
+`Vec(i32)` возвращает новый тип. `@This()` внутри указывает на сгенерированную структуру. Так устроены `std.ArrayList(T)`, `std.HashMap(K, V, ...)` и другие контейнеры.
+
+## Проверки наличия
+
+```zig
+const has_x = @hasField(Point, "x");
+const has_z = @hasField(Point, "z");
+const has_main = @hasDecl(@import("root"), "main");
+const name = @typeName(Point);
+```
+
+`@hasField` проверяет поле структуры или union. `@hasDecl` проверяет declaration в контейнере. `@typeName` возвращает имя типа строкой. Эти builtin позволяют писать код, который адаптируется к типу, например сериализатор, пропускающий поля без нужного атрибута.
+
+## Что под капотом
+
+`@typeInfo` возвращает `std.lang.Type`.
+
+```zig
+pub const Type = union(enum) {
+    type,
+    void,
+    bool,
+    noreturn,
+    int: Int,
+    float: Float,
+    pointer: Pointer,
+    array: Array,
+    @"struct": Struct,
+    optional: Optional,
+    error_union: ErrorUnion,
+    error_set: ErrorSet,
+    enum: Enum,
+    union: Union,
+    fn: Fn,
+    // ...
+};
+```
+
+Это tagged union. Ты работаешь с ним в `switch` при компиляции. Поэтому рефлексия в Zig это обычный код, а не набор макросов.
+
+`Struct` содержит имена, типы и атрибуты полей.
+
+```zig
+pub const Struct = struct {
+    is_tuple: bool,
+    layout: ContainerLayout,
+    backing_integer: ?type,
+    field_names: []const [:0]const u8,
+    field_types: []const type,
+    field_attrs: []const FieldAttributes,
+    decl_names: []const [:0]const u8,
+    decls: []const Declaration,
+};
+```
+
+`std.meta` в `lib/std/meta.zig` содержит готовые обертки: `Tag`, `activeTag`, `intToEnum`, `stringToEnum`, `fields`, `FieldType`, `ArgsTuple`. Перед написанием своей рефлексии проверь, нет ли функции в `std.meta`.
+
+`std.json` использует `@typeInfo` и `inline for`, чтобы сериализовать структуру без ручного кода. `std.fmt` разбирает строку формата при компиляции и проверяет типы аргументов. Это тот же comptime, а не отдельный движок макросов.
+
+## Где ломается
+
+**Comptime не читает runtime-данные.** В comptime нельзя работать с файлами, сетью, временем и `std.Io`. Runtime-информацию передают параметром.
+
+**`comptime` не делает значение константой.** `comptime var` может меняться внутри comptime-блока, но не существует в runtime. Это не то же самое, что `const`.
+
+**`inline for` раздувает код.** Каждая итерация создает отдельный код. Для большой структуры или горячего пути бинарник растет. Проверяй размер.
+
+**`@typeInfo` API меняется.** В 0.17 компилятор возвращает `std.lang.Type` с вариантом `@"struct"`, а не старый `std.builtin.Type`. Примеры из старых статей могут не собираться.
+
+**`@field` требует comptime-имя.** Строку из runtime подставить нельзя. Для динамического доступа нужен другой подход, например `std.meta.stringToEnum` и `inline`.
+
+**`@typeName` и `@typeInfo` не бесплатны.** В runtime они могут увеличить бинарник. Для отладки это нормально, для горячего пути проверяй результат.
+
+**`anytype` создает много специализаций.** Функция компилируется под каждый тип. Если типов много, бинарник растет. При известном наборе типов лучше `comptime T: type`.
+
+**`@compileError` не ловится.** Это остановка сборки, а не исключение. Для условной компиляции пиши `if (comptime condition)`.
+
+<TaskForLesson lesson="15-comptime-i-refleksiya" />

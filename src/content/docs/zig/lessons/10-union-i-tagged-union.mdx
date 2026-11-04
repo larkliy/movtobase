@@ -1,0 +1,148 @@
+---
+title: "10. Union и tagged union"
+description: "union(enum) хранит тег и payload, bare union доверяет тебе. Разбираем switch с захватом, extern union и типичные ошибки доступа."
+course: zig
+lesson: 10
+part: 2
+duration: 5
+tags: ["unions", "tagged union"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Tagged union
+
+В C `union` хранит одно значение в общей памяти. Компилятор не знает, какое поле записано, и не мешает прочитать другое. Записал `float`, прочитал `int`, получил мусор.
+
+В Zig есть два вида union. `union(enum)` хранит тег и payload. `union` без тега нужен для FFI и ручной работы с памятью.
+
+```zig
+const std = @import("std");
+
+const Shape = union(enum) {
+    circle: f64,
+    rect: struct { w: f64, h: f64 },
+    point,
+};
+
+fn area(shape: Shape) f64 {
+    return switch (shape) {
+        .circle => |r| std.math.pi * r * r,
+        .rect => |r| r.w * r.h,
+        .point => 0,
+    };
+}
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [1024]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    const s = Shape{ .rect = .{ .w = 3, .h = 4 } };
+    try out.interface.print("area={d}\n", .{area(s)});
+    try out.flush();
+}
+```
+
+`union(enum)` добавляет скрытое поле тега. `circle: f64` хранит `f64`. `rect` хранит структуру. `point` не хранит данных.
+
+`switch (shape)` разворачивает payload в ветке. Захват `|r|` создает переменную с типом выбранного варианта. В ветке `.point` захват не нужен.
+
+Значение создается через литерал с именем варианта.
+
+```zig
+const a = Shape{ .circle = 2.0 };
+const b = Shape{ .rect = .{ .w = 10, .h = 5 } };
+const c: Shape = .point;
+```
+
+Ты получаешь тег отдельно.
+
+```zig
+const Tag = std.meta.Tag(Shape);
+const tag: Tag = std.meta.activeTag(shape);
+try out.interface.print("tag={s}\n", .{@tagName(tag)});
+```
+
+`std.meta.Tag(Shape)` возвращает тип тега. `activeTag` читает активный вариант. `@tagName` превращает тег в строку.
+
+Вариант по имени создает `@unionInit`.
+
+```zig
+const field_name = "circle";
+const s = @unionInit(Shape, field_name, 2.0);
+```
+
+Имя должно быть известно на этапе компиляции. Для динамического имени нужен `@field`, но и он требует comptime-строку.
+
+## Bare union и extern union
+
+Если тег не нужен, ты берешь обычный `union`.
+
+```zig
+const Bits = union {
+    as_u32: u32,
+    as_f32: f32,
+};
+
+const Value = extern union {
+    i: i32,
+    f: f32,
+};
+```
+
+`extern union` имеет C-совместимый layout. Обычный `union` тоже не хранит тег, но компилятор может менять layout. Чтение поля, которое не было записано, это illegal behavior. В debug-сборке проверки тега нет, потому что тега не существует.
+
+## Что под капотом
+
+`@typeInfo` описывает union структурой `Union`.
+
+```zig
+pub const Union = struct {
+    layout: ContainerLayout,
+    tag_type: ?type,
+    fields: []const Field,
+
+    pub const Field = struct {
+        name: []const u8,
+        type: type,
+        alignment: Alignment,
+    };
+};
+```
+
+`tag_type` равно типу тега для `union(enum)` и `null` для bare union. По этому полю `switch` понимает, какие варианты существуют.
+
+Стандартная библиотека использует tagged union для операций ввода-вывода. `std.Io.Operation` описывает файл, буфер и смещение в зависимости от варианта. Бэкенд делает `switch` и выбирает системный вызов. Компилятор проверяет, что ни одна операция не забыта.
+
+`std.json.Value` тоже tagged union.
+
+```zig
+pub const Value = union(enum) {
+    null,
+    bool: bool,
+    integer: i64,
+    float: f64,
+    number_string: []const u8,
+    string: []const u8,
+    array: Array,
+    object: ObjectMap,
+};
+```
+
+Парсер JSON не знает заранее, что придет. После разбора значение имеет тег и payload. Пользователь делает `switch` и обрабатывает нужные варианты.
+
+## Где ломается
+
+**Доступ к неверному варианту.** Для tagged union Zig проверяет тег в safe-режиме и паникует с `access of union field 'x' while field 'y' is active`. В release это UB. Разворачивай через `switch` или проверяй `activeTag`.
+
+**Bare union не хранит тег.** Если данные приходят извне, храни тег отдельно или используй `union(enum)`. Иначе легко прочитать `f32` как `u32`.
+
+**Компилятор считает размер union по самому большому варианту.** `@sizeOf(Shape)` может быть больше `@sizeOf(f64)` из-за выравнивания и тега. Если размер критичен, проверяй `@sizeOf` и порядок вариантов.
+
+**Payload копируется.** `switch (shape) |payload|` передает копию. Для большой структуры используй `switch (&shape) |*payload|`, чтобы работать по указателю. Для изменения данных нужен указатель.
+
+**`@unionInit` требует comptime-имя.** Строку из файла подставить нельзя. Для динамики используют `std.meta.stringToEnum` и `@field`, но это тоже ограничено comptime.
+
+**Union не заменяет error union и optional.** `error{A,B}!T` и `?T` имеют другую семантику и другое представление. Tagged union нужен, когда вариантов больше двух и у каждого свой payload.
+
+<TaskForLesson lesson="10-union-i-tagged-union" />

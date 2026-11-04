@@ -1,0 +1,171 @@
+---
+title: "24. Продвинутый Zig: SIMD и свои аллокаторы"
+description: "SIMD через @Vector и собственный аллокатор с vtable. Разбираем векторные операции, учет памяти и контракт Allocator."
+course: zig
+lesson: 24
+part: 3
+duration: 5
+tags: ["simd", "allocators"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## SIMD
+
+`@Vector` описывает вектор фиксированной длины. Компилятор отображает операции над ним в SIMD-инструкции target.
+
+```zig
+const std = @import("std");
+
+fn dot(a: []const f32, b: []const f32) f32 {
+    const V = @Vector(4, f32);
+    var acc: V = @splat(0);
+    var i: usize = 0;
+
+    while (i + 4 <= a.len) : (i += 4) {
+        const va: V = a[i..][0..4].*;
+        const vb: V = b[i..][0..4].*;
+        acc += va * vb;
+    }
+
+    var total: f32 = @reduce(.Add, acc);
+    while (i < a.len) : (i += 1) total += a[i] * b[i];
+    return total;
+}
+
+pub fn main() void {
+    const a = [_]f32{ 1, 2, 3, 4, 5 };
+    const b = [_]f32{ 2, 2, 2, 2, 2 };
+    std.debug.print("dot={d}\n", .{dot(&a, &b)});
+}
+```
+
+`@Vector(4, f32)` создает вектор из четырех `f32`. `@splat(0)` заполняет его нулями. `a[i..][0..4].*` берет четыре элемента и превращает массив в вектор. `@reduce(.Add, acc)` складывает элементы вектора в скаляр. Хвост обрабатывается скалярно, потому что длина может не делиться на 4.
+
+Для целых чисел работает `@Vector(8, u8)`. Для выбора элементов по маске есть `@select`, для перестановки `@shuffle`. Ты можешь хранить векторы в структурах, передавать в функции и возвращать.
+
+## Собственный аллокатор
+
+`std.mem.Allocator` это указатель на состояние и vtable. Ты можешь реализовать обертку, которая считает выделенные байты.
+
+```zig
+const std = @import("std");
+
+const CountingAllocator = struct {
+    child: std.mem.Allocator,
+    allocated: usize = 0,
+    freed: usize = 0,
+
+    fn allocator(self: *CountingAllocator) std.mem.Allocator {
+        return .{ .ptr = self, .vtable = &vtable };
+    }
+
+    const vtable: std.mem.Allocator.VTable = .{
+        .alloc = alloc,
+        .resize = resize,
+        .remap = remap,
+        .free = free,
+    };
+
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+        const self: *CountingAllocator = @ptrCast(@alignCast(ctx));
+        const ptr = self.child.rawAlloc(len, alignment, ret_addr) orelse return null;
+        self.allocated += len;
+        return ptr;
+    }
+
+    fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
+        const self: *CountingAllocator = @ptrCast(@alignCast(ctx));
+        if (self.child.rawResize(memory, alignment, new_len, ret_addr)) {
+            self.allocated = self.allocated - memory.len + new_len;
+            return true;
+        }
+        return false;
+    }
+
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *CountingAllocator = @ptrCast(@alignCast(ctx));
+        const ptr = self.child.rawRemap(memory, alignment, new_len, ret_addr) orelse return null;
+        self.allocated = self.allocated - memory.len + new_len;
+        return ptr;
+    }
+
+    fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
+        const self: *CountingAllocator = @ptrCast(@alignCast(ctx));
+        self.child.rawFree(memory, alignment, ret_addr);
+        self.freed += memory.len;
+    }
+};
+
+pub fn main(init: std.process.Init) !void {
+    var counting: CountingAllocator = .{ .child = init.gpa };
+    const a = counting.allocator();
+
+    var list: std.ArrayList(u8) = .empty;
+    defer list.deinit(a);
+    try list.appendSlice(a, "hello, counting allocator");
+    try list.append(a, '!');
+
+    std.debug.print("items={s}\nallocated={d} freed={d}\n", .{
+        list.items,
+        counting.allocated,
+        counting.freed,
+    });
+}
+```
+
+`vtable` это статическая таблица функций. `ptr` указывает на экземпляр `CountingAllocator`. `rawAlloc`, `rawFree`, `rawResize` и `rawRemap` вызывают операции дочернего аллокатора. `@ptrCast(@alignCast(ctx))` восстанавливает тип из `*anyopaque`.
+
+`allocated` считает байты, `freed` считает освобожденные. В примере `defer list.deinit(a)` выполнится после `print`, поэтому `freed` напечатается равным 0. Чтобы увидеть освобождение, печатай после `deinit` или вынеси работу со списком в отдельный блок.
+
+## Что под капотом
+
+`std.mem.Allocator.VTable` в `lib/std/mem/Allocator.zig`.
+
+```zig
+pub const VTable = struct {
+    alloc: *const fn (*anyopaque, len: usize, alignment: Alignment, ret_addr: usize) ?[*]u8,
+    resize: *const fn (*anyopaque, memory: []u8, alignment: Alignment, new_len: usize, ret_addr: usize) bool,
+    remap: *const fn (*anyopaque, memory: []u8, alignment: Alignment, new_len: usize, ret_addr: usize) ?[*]u8,
+    free: *const fn (*anyopaque, memory: []u8, alignment: Alignment, ret_addr: usize) void,
+};
+```
+
+`Allocator` не знает, что за ним стоит. Он вызывает функцию из vtable. Так работают DebugAllocator, арена, FixedBufferAllocator и собственный аллокатор.
+
+`rawAlloc` и `rawFree` это публичные обертки над vtable.
+
+```zig
+pub fn rawAlloc(self: Allocator, len: usize, alignment: Alignment, ret_addr: usize) ?[*]u8
+pub fn rawFree(self: Allocator, memory: []u8, alignment: Alignment, ret_addr: usize) void
+```
+
+Их вызывают `ArrayList`, `HashMap` и другие контейнеры.
+
+`@Vector` это встроенный тип. В `lib/std/lang.zig` он представлен вариантом `Type.vector` с длиной и типом элемента. Компилятор отображает операции в LLVM vector ops, а LLVM выбирает SSE, AVX или NEON в зависимости от CPU features.
+
+`@reduce`, `@splat`, `@select` и `@shuffle` работают на векторах. `@reduce(.Add, v)` сворачивает вектор в скаляр. `@shuffle` переставляет элементы по comptime-маске.
+
+## Где ломается
+
+**SIMD не гарантирует ускорение.** На маленьких массивах, невыровненных данных и при ветвлениях скалярный код может быть быстрее. Измеряй.
+
+**Размер вектора зависит от target.** `@Vector(8, f32)` на AVX2 это 256 бит, на SSE это две инструкции. Для переносимого кода проверяй CPU features.
+
+**Хвост обрабатывается отдельно.** Длина массива может не делиться на 4, 8 или 16. Скалярный цикл после векторного обязателен.
+
+**`@ptrCast` в аллокаторе требует `@alignCast`.** `*anyopaque` не несет выравнивания. Без `@alignCast` компилятор не даст привести его к `*CountingAllocator`.
+
+**Контракт аллокатора строгий.** `free` получает то же выравнивание, что было в `alloc`. `memory.len` должен совпадать с последним размером. Нарушение приводит к повреждению памяти.
+
+**`resize` и `remap` могут вернуть `false` или `null`.** Это не ошибка. Вызывающий сам решает, копировать ли данные. Аллокатор должен корректно поддержать оба сценария.
+
+**Двойное освобождение опасно.** Дочерний аллокатор может не проверять double free. DebugAllocator проверяет, page_allocator нет. Обертка тоже должна быть аккуратной.
+
+**Учет памяти не показывает пик.** `allocated - freed` это текущий баланс. Для максимума обновляй `max_allocated` в `alloc`.
+
+**`@Vector` и `@reduce` требуют comptime-параметров.** Длину вектора нельзя передать из runtime. Для динамических размеров используются срезы и циклы.
+
+**Не оптимизируй без профиля.** SIMD и кастомные аллокаторы нужны для доказанных узких мест. Сначала измерь, потом усложняй.
+
+<TaskForLesson lesson="24-prodvinutyy-zig" />

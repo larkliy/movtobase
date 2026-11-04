@@ -1,0 +1,173 @@
+---
+title: "9. Enum и switch"
+description: "Enum в Zig это отдельный тип, а switch обязан покрыть все варианты. Разбираем базовый тип, диапазоны, методы и проверку значений извне."
+course: zig
+lesson: 9
+part: 2
+duration: 5
+tags: ["enums", "switch"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Enum
+
+В C `enum` это набор имен для чисел. Компилятор не мешает сравнить его с посторонним `int` и не требует обработать все варианты в `switch`.
+
+В Zig enum это тип с фиксированным набором значений. `switch` по нему обязан покрыть каждый вариант.
+
+```zig
+const std = @import("std");
+
+const Command = enum {
+    start,
+    stop,
+    status,
+};
+
+fn describe(cmd: Command) []const u8 {
+    return switch (cmd) {
+        .start => "starting",
+        .stop => "stopping",
+        .status => "checking",
+    };
+}
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [1024]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    try out.interface.print("{s}\n", .{describe(.start)});
+    try out.flush();
+}
+```
+
+`Command` не приводится к `int` автоматически. `describe(.start)` принимает только `Command`. Если добавить в enum вариант `.restart` и не добавить ветку, компилятор скажет `switch on type 'Command' is not exhaustive`.
+
+`switch` это выражение. Ты возвращаешь результат, присваиваешь его или передаешь в `print`.
+
+## Базовый тип и числа
+
+По умолчанию Zig выбирает размер тега сам. Если формат важен для протокола или FFI, базовый тип задается явно.
+
+```zig
+const HttpMethod = enum(u8) {
+    get = 1,
+    post = 2,
+    put = 3,
+    delete = 4,
+};
+```
+
+`HttpMethod` занимает один байт, а значения совпадают с указанными числами. Преобразования выполняются явно.
+
+```zig
+const code: u8 = @intFromEnum(HttpMethod.post);
+const method: HttpMethod = @enumFromInt(code);
+```
+
+`@enumFromInt` не проверяет, что число входит в набор. Если передать `99`, получится значение enum, которого нет в объявлении. Чтение такого значения в safe-режиме может вызвать панику, в release это illegal behavior.
+
+Для проверки внешних данных есть `std.meta.intToEnum`.
+
+```zig
+const method = std.meta.intToEnum(HttpMethod, 99) catch |err| {
+    try out.interface.print("bad method: {s}\n", .{@errorName(err)});
+    return;
+};
+```
+
+Функция возвращает error union и не пропускает число вне диапазона.
+
+## Ветки и диапазоны
+
+`switch` объединяет значения в одной ветке и поддерживает диапазоны.
+
+```zig
+const byte: u8 = 'a';
+const kind = switch (byte) {
+    'a'...'z', 'A'...'Z' => "letter",
+    '0'...'9' => "digit",
+    ' ', '\t', '\n' => "space",
+    else => "other",
+};
+```
+
+Для обычного enum `else` не нужен. Компилятор требует перечислить все варианты. Для non-exhaustive enum с `_` в объявлении `else` обязателен, потому что значение может быть вне списка.
+
+Enum это контейнер. Внутри ты объявляешь константы и функции.
+
+```zig
+const Command = enum {
+    start,
+    stop,
+
+    fn isRun(self: Command) bool {
+        return self == .start;
+    }
+};
+```
+
+Вызов `Command.start.isRun()` передает значение в `self`. Неявного получателя нет.
+
+## Что под капотом
+
+`@typeInfo` описывает enum структурой `Enum`.
+
+```zig
+pub const Enum = struct {
+    tag_type: type,
+    fields: []const Field,
+    decls: []const Declaration,
+    is_exhaustive: bool,
+
+    pub const Field = struct {
+        name: []const u8,
+        value: comptime_int,
+    };
+};
+```
+
+`tag_type` это базовый тип, `fields` содержит имена и значения, `is_exhaustive` говорит, можно ли встретить значение вне списка. Компилятор использует этот флаг, когда проверяет полноту `switch`.
+
+Стандартная библиотека объявляет обычные enum без базового типа, когда значения нужны только для выбора ветки.
+
+```zig
+pub const Clock = enum {
+    real,
+    monotonic,
+    awake,
+    boot,
+    cpu_process,
+    cpu_thread,
+};
+```
+
+`std.builtin.OptimizeMode` тоже enum, но его значения используются в build-системе и имеют фиксированный смысл.
+
+`@tagName` возвращает имя варианта, `@intFromEnum` число.
+
+```zig
+try out.interface.print("{s} = {d}\n", .{
+    @tagName(Command.stop),
+    @intFromEnum(Command.stop),
+});
+```
+
+Оба builtin работают на этапе компиляции, если значение известно.
+
+## Где ломается
+
+**Enum не приводится к числу неявно.** `const x: u8 = Command.start;` не собирается. Нужен `@intFromEnum`. Обратное преобразование делается через `@enumFromInt` или `std.meta.intToEnum`.
+
+**`@enumFromInt` не валидирует.** Это переинтерпретация числа, а не проверка. Данные из сети или файла разбирай через `std.meta.intToEnum` и обрабатывай ошибку.
+
+**`switch` должен быть исчерпывающим.** Ты не можешь обработать два случая и пропустить остальные. При добавлении варианта компилятор покажет все `switch`, которые нужно обновить.
+
+**Fallthrough нет.** В C ветки проваливаются друг в друга. В Zig каждая ветка самостоятельная. Общее поведение задается через запятую: `.start, .stop => ...`.
+
+**`_` делает enum non-exhaustive.** Запись `enum(u8) { a, b, _ }` разрешает значения вне списка. Такой enum удобен для FFI и неизвестных кодов, но `switch` по нему требует `else`.
+
+**Enum и union это разные типы.** Enum хранит только тег. Если каждому варианту нужны данные, тебе нужен `union(enum)`.
+
+<TaskForLesson lesson="09-enum-i-switch" />

@@ -1,0 +1,30 @@
+---
+import MobileMenuFooter from '@astrojs/starlight/components/MobileMenuFooter.astro';
+import SidebarPersister from '@astrojs/starlight/components/SidebarPersister.astro';
+import SidebarSublist from '@astrojs/starlight/components/SidebarSublist.astro';
+
+const isCsharp = Astro.url.pathname.includes('/csharp/');
+const sidebar = Astro.locals.starlightRoute.sidebar.filter((entry) => {
+  if (entry.type !== 'group') return true;
+  return isCsharp ? entry.label.startsWith('C#') : entry.label.startsWith('Zig');
+});
+---
+
+<div class="mb-sidebar-head">
+  <div class="mb-sidebar-course">
+    <span class="mb-sidebar-kicker">{isCsharp ? 'Серия разборов' : 'Курс'}</span>
+    <strong>{isCsharp ? 'C# Low Level' : 'Zig 0.17.0'}</strong>
+  </div>
+  {isCsharp ? (
+    <div class="mb-sidebar-meta">6 разборов · 12 000 слов</div>
+  ) : (
+    <div class="mb-sidebar-progress">
+      <div class="mb-sidebar-bar"><span data-progress-bar></span></div>
+      <span data-sidebar-progress>0/24</span>
+    </div>
+  )}
+</div>
+
+<SidebarPersister><SidebarSublist sublist={sidebar} /></SidebarPersister>
+
+<div class="md:sl-hidden"><MobileMenuFooter /></div>

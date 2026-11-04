@@ -1,0 +1,20 @@
+---
+import EditLink from '@astrojs/starlight/components/EditLink.astro';
+import LastUpdated from '@astrojs/starlight/components/LastUpdated.astro';
+import Pagination from '@astrojs/starlight/components/Pagination.astro';
+import SiteFooter from './SiteFooter.astro';
+
+const { entry } = Astro.locals.starlightRoute;
+const showMeta = entry.data.template !== 'splash';
+---
+
+<footer class="mb-docs-footer sl-flex">
+  {showMeta && (
+    <div class="mb-footer-meta sl-flex">
+      <EditLink />
+      <LastUpdated />
+    </div>
+  )}
+  <Pagination />
+  <SiteFooter />
+</footer>

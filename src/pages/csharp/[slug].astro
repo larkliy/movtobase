@@ -1,0 +1,117 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getCollection, render } from 'astro:content';
+import { csharpArticles } from '../../data/courses';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles');
+  return articles.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+const base = import.meta.env.BASE_URL;
+const href = (path: string) => base.replace(/\/$/, '') + path;
+const index = csharpArticles.findIndex((item) => item.slug === entry.id);
+const next = csharpArticles[index + 1];
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const number = entry.data.article;
+---
+
+<StarlightPage
+  frontmatter={{
+    title: entry.data.title,
+    description: entry.data.description,
+    template: 'splash',
+  }}
+  hasSidebar={false}
+>
+  <style is:global>
+    main > .content-panel:first-child { display: none; }
+    main { --sl-content-width: 78rem; }
+  </style>
+
+  <div class="mb-article-page">
+    <nav class="mb-breadcrumbs" aria-label="Хлебные крошки">
+      <a href={href('/')}>Главная</a><span>/</span>
+      <a href={href('/csharp/')}>C# Low Level</a><span>/</span>
+      <span>Разбор {String(number).padStart(2, '0')}</span>
+    </nav>
+
+    <header class="mb-article-head">
+      <span class="mb-article-eyebrow">C# Low Level + Zero Allocations · Разбор {String(number).padStart(2, '0')}</span>
+      <h1>{entry.data.title}</h1>
+      <p>{entry.data.description}</p>
+      <div class="mb-page-meta">
+        <span>{entry.data.duration} мин</span>
+        <span class="mb-dot"></span>
+        <span>.NET 9</span>
+        <span class="mb-dot"></span>
+        <span>CoreCLR</span>
+        <span class="mb-series">Разбор {number} из {csharpArticles.length}</span>
+      </div>
+    </header>
+
+    <div class="mb-article-layout">
+      <article class="mb-article-body">
+        <Content />
+      </article>
+
+      <aside class="mb-article-rail">
+        {toc.length > 0 && (
+          <div class="mb-rail-card mb-toc-card">
+            <span class="mb-kicker">В этой статье</span>
+            <nav aria-label="Содержание статьи">
+              {toc.map((heading) => (
+                <a class:list={['depth-' + heading.depth]} href={`#${heading.slug}`}>{heading.text}</a>
+              ))}
+            </nav>
+          </div>
+        )}
+
+        <div class="mb-rail-card">
+          <span class="mb-kicker">Серия разборов</span>
+          <ol class="mb-series-nav">
+            {csharpArticles.map((item) => (
+              <li>
+                <a class:list={{ current: item.slug === entry.id }} href={href(`/csharp/${item.slug}/`)}>
+                  <span>{String(item.number).padStart(2, '0')}</span>
+                  {item.title}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {next && (
+          <a class="mb-rail-card mb-next-card" href={href(`/csharp/${next.slug}/`)}>
+            <span class="mb-kicker">Следующий разбор</span>
+            <strong>{next.title}</strong>
+            <span>Открыть →</span>
+          </a>
+        )}
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const links = [...document.querySelectorAll('.mb-toc-card a')];
+    const targets = links
+      .map((link) => ({ link, target: document.getElementById(link.hash.slice(1)) }))
+      .filter((item) => item.target);
+    if (targets.length) {
+      const update = () => {
+        let active = targets[0];
+        for (const item of targets) {
+          if (item.target.getBoundingClientRect().top <= 120) active = item;
+        }
+        links.forEach((link) => link.classList.toggle('is-active', link === active.link));
+      };
+      update();
+      window.addEventListener('scroll', update, { passive: true });
+    }
+  </script>
+</StarlightPage>

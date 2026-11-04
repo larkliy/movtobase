@@ -1,0 +1,229 @@
+---
+import Search from '@astrojs/starlight/components/Search.astro';
+import SocialIcons from '@astrojs/starlight/components/SocialIcons.astro';
+import ThemeSelect from '@astrojs/starlight/components/ThemeSelect.astro';
+
+const base = import.meta.env.BASE_URL;
+const href = (path: string) => base.replace(/\/$/, '') + path;
+const path = Astro.url.pathname;
+const isActive = (prefix: string) => path.startsWith(href(prefix));
+---
+
+<div class="mb-header">
+  <a class="mb-brand" href={href('/')} aria-label="movtobase — на главную">
+    <span class="mb-logo" aria-hidden="true">m</span>
+    <span class="mb-wordmark">movtobase</span>
+    <span class="mb-badge">база</span>
+  </a>
+
+  <nav class="mb-nav" aria-label="Основная навигация">
+    <a href={href('/#courses')}>Курсы</a>
+    <a href={href('/zig/')} class:list={{ active: isActive('/zig/') }}>Zig</a>
+    <a href={href('/csharp/')} class:list={{ active: isActive('/csharp/') }}>C#</a>
+    <a href={href('/practice/')} class:list={{ active: isActive('/practice/') }}>Практика</a>
+  </nav>
+
+  <div class="mb-actions">
+    <Search />
+    <ThemeSelect />
+    <div class="mb-social"><SocialIcons /></div>
+  </div>
+
+  <details class="mb-mobile">
+    <summary aria-label="Открыть меню">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </svg>
+    </summary>
+    <nav aria-label="Мобильная навигация">
+      <a href={href('/#courses')}>Курсы</a>
+      <a href={href('/zig/')}>Zig 0.17.0</a>
+      <a href={href('/csharp/')}>C# Low Level</a>
+      <a href={href('/practice/')}>Практика</a>
+    </nav>
+  </details>
+</div>
+
+<script>
+  // @ts-nocheck
+  const KEY = 'movtobase:zig:progress';
+  const LAST = 'movtobase:last';
+
+  const readDone = () => {
+    try {
+      const value = JSON.parse(localStorage.getItem(KEY) || '[]');
+      return Array.isArray(value) ? value : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveDone = (list) => {
+    localStorage.setItem(KEY, JSON.stringify([...new Set(list)]));
+    updateProgressUI();
+  };
+
+  const lessons = () => {
+    if (Array.isArray(window.__MB_LESSONS__)) return window.__MB_LESSONS__;
+    const node = document.getElementById('mb-lessons-data');
+    if (!node) return [];
+    try {
+      return JSON.parse(node.textContent || '[]');
+    } catch {
+      return [];
+    }
+  };
+
+  const firstIncomplete = () => {
+    const done = new Set(readDone());
+    const all = lessons();
+    return all.find((lesson) => !done.has(lesson.slug)) || all[all.length - 1] || null;
+  };
+
+  const updateProgressUI = () => {
+    const done = new Set(readDone());
+    const total = lessons().length || 24;
+
+    document.querySelectorAll('[data-lesson-row]').forEach((row) => {
+      row.classList.toggle('is-done', done.has(row.dataset.lessonSlug));
+    });
+
+    document.querySelectorAll('[data-progress-count]').forEach((node) => {
+      node.textContent = `${done.size}/${total}`;
+    });
+
+    document.querySelectorAll('[data-progress-bar]').forEach((node) => {
+      node.style.width = `${total ? (done.size / total) * 100 : 0}%`;
+    });
+
+    document.querySelectorAll('[data-progress-ring]').forEach((ring) => {
+      const circle = ring.querySelector('circle[data-ring-value]');
+      if (!circle) return;
+      const radius = Number(circle.getAttribute('r') || 52);
+      const circumference = 2 * Math.PI * radius;
+      const ratio = total ? done.size / total : 0;
+      circle.style.strokeDasharray = `${circumference}`;
+      circle.style.strokeDashoffset = `${circumference * (1 - ratio)}`;
+      const label = ring.querySelector('[data-progress-ring-label]');
+      if (label) label.textContent = `${done.size} / ${total}`;
+      document.querySelectorAll('[data-progress-percent]').forEach((node) => {
+        node.textContent = `Вы прошли ${total ? Math.round((done.size / total) * 100) : 0}%`;
+      });
+    });
+
+    const next = firstIncomplete();
+    if (next) {
+      document.querySelectorAll('[data-continue-href]').forEach((node) => {
+        node.setAttribute('href', next.href);
+      });
+      document.querySelectorAll('[data-continue-title]').forEach((node) => {
+        node.textContent = next.title;
+      });
+      document.querySelectorAll('[data-continue-number]').forEach((node) => {
+        node.textContent = `Урок ${next.number}`;
+      });
+      document.querySelectorAll('[data-continue-label]').forEach((node) => {
+        node.textContent = `Продолжить урок ${next.number}`;
+      });
+      document.querySelectorAll('[data-continue-cta-label]').forEach((node) => {
+        node.textContent = `Продолжить с урока ${next.number}: ${next.title}`;
+      });
+    }
+
+    document.querySelectorAll('[data-progress-toggle]').forEach((button) => {
+      const slug = button.dataset.lessonSlug;
+      const isDone = done.has(slug);
+      button.classList.toggle('is-done', isDone);
+      button.setAttribute('aria-pressed', String(isDone));
+      const label = button.querySelector('[data-toggle-label]');
+      if (label) label.textContent = isDone ? 'Пройдено' : 'Отметить пройденным';
+    });
+
+    document.querySelectorAll('[data-sidebar-progress]').forEach((node) => {
+      node.textContent = `${done.size}/${total}`;
+    });
+
+    document.querySelectorAll('[data-part-count]').forEach((node) => {
+      const part = Number(node.dataset.partCount);
+      const partLessons = lessons().filter((lesson) => lesson.part === part);
+      const partDone = partLessons.filter((lesson) => done.has(lesson.slug)).length;
+      node.textContent = `${partDone}/${partLessons.length}`;
+      const check = document.querySelector(`[data-part-check="${part}"]`);
+      if (check) check.classList.toggle('is-done', partLessons.length > 0 && partDone === partLessons.length);
+    });
+  };
+
+  const initReadingProgress = () => {
+    const bar = document.querySelector('[data-reading-progress]');
+    if (!bar) return;
+    const update = () => {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - window.innerHeight;
+      const value = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+      bar.style.width = `${value * 100}%`;
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+  };
+
+  const rememberCurrent = () => {
+    const current = document.querySelector('[data-lesson-current]');
+    if (!current) return;
+    try {
+      localStorage.setItem(
+        LAST,
+        JSON.stringify({
+          slug: current.dataset.lessonSlug,
+          title: current.dataset.lessonTitle,
+          number: current.dataset.lessonNumber,
+          href: location.pathname.replace(/\/$/, '/'),
+        }),
+      );
+    } catch {}
+  };
+
+  const initLastVisit = () => {
+    const card = document.querySelector('[data-continue-card]');
+    if (!card) return;
+    try {
+      const last = JSON.parse(localStorage.getItem(LAST) || 'null');
+      if (!last || !last.href) return;
+      const link = card.querySelector('[data-continue-href]');
+      const title = card.querySelector('[data-continue-title]');
+      const number = card.querySelector('[data-continue-number]');
+      if (link) link.setAttribute('href', last.href);
+      if (title) title.textContent = last.title;
+      if (number) number.textContent = `Урок ${last.number}`;
+    } catch {}
+  };
+
+  document.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-progress-toggle]');
+    if (!target) return;
+    event.preventDefault();
+    const slug = target.dataset.lessonSlug;
+    if (!slug) return;
+    const done = new Set(readDone());
+    if (done.has(slug)) done.delete(slug);
+    else done.add(slug);
+    saveDone([...done]);
+  });
+
+  window.addEventListener('storage', (event) => {
+    if (event.key === KEY) updateProgressUI();
+  });
+
+  const start = () => {
+    updateProgressUI();
+    initLastVisit();
+    rememberCurrent();
+    initReadingProgress();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+</script>

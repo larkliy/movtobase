@@ -1,10 +1,27 @@
-# movtobase
+# movtobase (Astro + Starlight)
 
-Сайт бесплатных курсов по системному программированию:
+Новая версия сайта: без PDF, с прогрессом, задачами внутри уроков и поиском.
 
-- **C# Low Level + Zero Allocations** — 6 разборов о том, как .NET работает под капотом
-- **Zig 0.17.0 с нуля** — 24 урока с задачами и решениями: от синтаксиса до аллокаторов, C interop, потоков и финального проекта
+## Команды
 
-Сайт: https://larkliy.github.io/movtobase/
+```bash
+npm install
+npm run migrate   # обновить контент из C:\Users\heller\Desktop\movtobase-site\docs
+npm run dev       # http://localhost:4321/movtobase/
+npm run build     # dist/
+```
 
-В репозитории лежит только собранный сайт (MkDocs Material). Исходники курса не публикуются.
+## Структура
+
+- `src/content/docs/zig/lessons` — уроки Zig
+- `src/content/docs/csharp` — разборы C#
+- `src/content/tasks` и `src/content/answers` — задачи и решения
+- `src/pages/index.astro` — главная
+- `src/pages/zig/index.astro` — программа курса Zig
+- `src/pages/csharp/index.astro` — программа C#
+- `src/pages/practice.astro` — все задачи
+- `src/styles/custom.css` — тема и дизайн
+
+## Деплой
+
+GitHub Actions собирает сайт и публикует `dist` на GitHub Pages. База сайта: `/movtobase/`.

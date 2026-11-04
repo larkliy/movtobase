@@ -1,0 +1,201 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import TaskPanel from '../components/TaskPanel.astro';
+import { getCollection } from 'astro:content';
+import { zigParts, zigTotal } from '../data/courses';
+
+const tasks = (await getCollection('tasks')).sort((a, b) => a.data.number - b.data.number);
+const answers = await getCollection('answers');
+const items = tasks.map((task) => ({
+  task,
+  answer: answers.find((item) => item.data.lesson === task.data.lesson),
+}));
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'Практика',
+    description: '24 задачи по Zig: реши руками, потом сверься с разбором.',
+    template: 'splash',
+  }}
+  hasSidebar={false}
+>
+  <style is:global>
+    main > .content-panel:first-child { display: none; }
+    main { --sl-content-width: 74rem; }
+  </style>
+
+  <div class="mb-practice-page">
+    <header class="mb-practice-head">
+      <div>
+        <nav class="mb-breadcrumbs" aria-label="Хлебные крошки">
+          <a href={import.meta.env.BASE_URL.replace(/\/$/, '') + '/'}>Главная</a><span>/</span><span>Практика</span>
+        </nav>
+        <h1>Практика</h1>
+        <p>24 задачи. Реши руками, потом сверься с разбором.</p>
+      </div>
+      <div class="mb-practice-score">
+        <strong><span data-progress-count>0/{zigTotal}</span> решено</strong>
+        <div class="mb-progress"><span data-progress-bar></span></div>
+      </div>
+    </header>
+
+    <div class="mb-filter-bar">
+      <div class="mb-segmented" role="group" aria-label="Часть курса">
+        <button type="button" class="is-active" data-part-filter="all">Все</button>
+        <button type="button" data-part-filter="1">Часть I</button>
+        <button type="button" data-part-filter="2">Часть II</button>
+        <button type="button" data-part-filter="3">Часть III</button>
+      </div>
+      <div class="mb-filter-right">
+        <select data-status-filter aria-label="Статус задачи">
+          <option value="all">Все статусы</option>
+          <option value="done">Решённые</option>
+          <option value="todo">Не начатые</option>
+        </select>
+        <label class="mb-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="search" placeholder="Найти задачу…" data-task-search />
+        </label>
+      </div>
+    </div>
+
+    <div class="mb-part-summaries">
+      {zigParts.map((part) => (
+        <span class="mb-part-summary" data-part-summary={part.number}>
+          {part.title}: <strong>0/{part.lessons.length}</strong>
+        </span>
+      ))}
+    </div>
+
+    <div class="mb-practice-layout">
+      <div class="mb-task-list" data-task-list>
+        {items.map((item) => (
+          <button
+            type="button"
+            class="mb-practice-row"
+            data-task-row
+            data-task-id={item.task.data.lesson}
+            data-lesson-slug={item.task.data.lesson}
+            data-part={item.task.data.part}
+            data-status="todo"
+          >
+            <span class="mb-practice-number">{String(item.task.data.number).padStart(2, '0')}</span>
+            <span class="mb-practice-copy">
+              <strong>{item.task.data.title}</strong>
+              <span>{item.task.data.description}</span>
+              <span class="mb-tags">{item.task.data.tags.map((tag) => <span>{tag}</span>)}</span>
+            </span>
+            <span class="mb-difficulty" aria-label={`Сложность ${item.task.data.difficulty} из 3`}>
+              {[1, 2, 3].map((dot) => <span class:list={{ on: dot <= item.task.data.difficulty }}></span>)}
+            </span>
+            <span class="mb-status-pill" data-status-pill>Не начато</span>
+            <span class="mb-row-arrow">→</span>
+          </button>
+        ))}
+      </div>
+
+      <div class="mb-task-detail-pane">
+        {items.map((item, index) => (
+          <TaskPanel task={item.task} answer={item.answer} active={index === 0} />
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // @ts-nocheck
+    const KEY = 'movtobase:zig:progress';
+    const readDone = () => {
+      try {
+        const value = JSON.parse(localStorage.getItem(KEY) || '[]');
+        return new Set(Array.isArray(value) ? value : []);
+      } catch {
+        return new Set();
+      }
+    };
+
+    const rows = [...document.querySelectorAll('[data-task-row]')];
+    const details = [...document.querySelectorAll('[data-task-detail]')];
+    const partButtons = [...document.querySelectorAll('[data-part-filter]')];
+    const statusFilter = document.querySelector('[data-status-filter]');
+    const search = document.querySelector('[data-task-search]');
+    let part = 'all';
+    let selected = null;
+
+    const select = (id, scroll = true) => {
+      selected = id;
+      rows.forEach((row) => row.classList.toggle('is-selected', row.dataset.taskId === id));
+      details.forEach((detail) => detail.classList.toggle('is-active', detail.dataset.taskDetail === id));
+      if (scroll && window.innerWidth < 900) {
+        document.querySelector(`[data-task-detail="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
+    const applyStatus = () => {
+      const done = readDone();
+      rows.forEach((row) => {
+        const isDone = done.has(row.dataset.lessonSlug);
+        row.dataset.status = isDone ? 'done' : 'todo';
+        const pill = row.querySelector('[data-status-pill]');
+        if (pill) pill.textContent = isDone ? 'Решено' : 'Не начато';
+        row.classList.toggle('is-done', isDone);
+      });
+
+      for (const partNumber of ['1', '2', '3']) {
+        const partRows = rows.filter((row) => row.dataset.part === partNumber);
+        const partDone = partRows.filter((row) => row.dataset.status === 'done').length;
+        const node = document.querySelector(`[data-part-summary="${partNumber}"] strong`);
+        if (node) node.textContent = `${partDone}/${partRows.length}`;
+      }
+    };
+
+    const applyFilters = () => {
+      const done = readDone();
+      const query = (search?.value || '').trim().toLowerCase();
+      let firstVisible = null;
+      rows.forEach((row) => {
+        const partOk = part === 'all' || row.dataset.part === part;
+        const statusOk =
+          !statusFilter ||
+          statusFilter.value === 'all' ||
+          (statusFilter.value === 'done' && done.has(row.dataset.lessonSlug)) ||
+          (statusFilter.value === 'todo' && !done.has(row.dataset.lessonSlug));
+        const searchOk = !query || row.textContent.toLowerCase().includes(query);
+        const show = partOk && statusOk && searchOk;
+        row.hidden = !show;
+        if (show && !firstVisible) firstVisible = row.dataset.taskId;
+      });
+      if (firstVisible && !rows.find((row) => row.dataset.taskId === selected && !row.hidden)) {
+        select(firstVisible, false);
+      }
+    };
+
+    rows.forEach((row) => row.addEventListener('click', () => select(row.dataset.taskId)));
+    partButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        part = button.dataset.partFilter;
+        partButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+        applyFilters();
+      });
+    });
+    statusFilter?.addEventListener('change', applyFilters);
+    search?.addEventListener('input', applyFilters);
+
+    window.addEventListener('mb-progress', applyStatus);
+    window.addEventListener('storage', (event) => {
+      if (event.key === KEY) {
+        applyStatus();
+        applyFilters();
+      }
+    });
+
+    const start = () => {
+      applyStatus();
+      select(rows[0]?.dataset.taskId, false);
+      applyFilters();
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+    else start();
+  </script>
+</StarlightPage>

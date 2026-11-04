@@ -1,0 +1,156 @@
+---
+title: "14. Аллокаторы и владение памятью"
+description: "Аллокатор передается параметром, а владение памятью задается через defer. Разбираем DebugAllocator, арену, FixedBufferAllocator и ArrayList."
+course: zig
+lesson: 14
+part: 2
+duration: 5
+tags: ["allocators", "memory"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Аллокатор как параметр
+
+В C `malloc` и `free` доступны из любого места. В Zig глобального аллокатора по умолчанию нет. Функция, которой нужна куча, принимает `std.mem.Allocator` параметром. По сигнатуре видно, что она выделяет память.
+
+```zig
+const std = @import("std");
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [1024]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+    const gpa = init.gpa;
+
+    const text = try gpa.dupe(u8, "hello");
+    defer gpa.free(text);
+
+    try out.interface.print("{s}\n", .{text});
+    try out.flush();
+}
+```
+
+`init.gpa` это аллокатор общего назначения, который рантайм создал до вызова `main`. В debug-сборке он проверяет утечки. `dupe` выделяет память и копирует байты. `defer gpa.free(text)` освобождает буфер при выходе из функции.
+
+## Основные аллокаторы
+
+| Аллокатор | Когда использовать |
+| --- | --- |
+| `std.heap.DebugAllocator` | отладка, проверка утечек, тесты |
+| `std.heap.ArenaAllocator` | много мелких выделений с одинаковым временем жизни |
+| `std.heap.FixedBufferAllocator` | заранее известный буфер, без кучи |
+| `std.heap.page_allocator` | большие блоки, напрямую у ОС |
+| `std.heap.c_allocator` | совместимость с C, если уже линкуется libc |
+
+`GeneralPurposeAllocator` в 0.17 называется `DebugAllocator`. Старое имя встречается в туториалах, новый API называет его `std.heap.DebugAllocator`.
+
+```zig
+var gpa: std.heap.DebugAllocator(.{}) = .init;
+defer _ = gpa.deinit();
+const allocator = gpa.allocator();
+```
+
+`deinit` возвращает `std.heap.Check`. В тестах ты можешь проверить результат явно, в обычном коде достаточно вызвать.
+
+## ArrayList
+
+`std.ArrayList(T)` это динамический массив. В 0.17 он не хранит аллокатор внутри, поэтому аллокатор передается в методы.
+
+```zig
+var list: std.ArrayList(u8) = .empty;
+defer list.deinit(gpa);
+
+try list.appendSlice(gpa, "hello");
+try list.append(gpa, '!');
+
+list.items[0] = 'H';
+```
+
+`.empty` создает пустой список без выделения. `append`, `appendSlice`, `insert` и `replaceRange` принимают аллокатор. `deinit(gpa)` освобождает буфер. `items` возвращает срез текущих элементов. `toOwnedSlice(gpa)` отдает буфер вызывающему, после этого список нельзя использовать без повторной инициализации.
+
+## Арена
+
+Арена выделяет память блоками и освобождает все одной операцией.
+
+```zig
+var arena = std.heap.ArenaAllocator.init(gpa);
+defer arena.deinit();
+const a = arena.allocator();
+
+const s1 = try a.dupe(u8, "one");
+const s2 = try a.dupe(u8, "two");
+```
+
+Отдельный `free` для `s1` и `s2` не нужен. `arena.deinit()` освобождает все блоки. Арена подходит для парсинга запроса, где много мелких объектов живут до конца обработки.
+
+Освобождать отдельные выделения из арены бессмысленно. Метод `free` у арены ничего не делает. Память возвращается только через `deinit`.
+
+## FixedBufferAllocator
+
+```zig
+var buf: [4096]u8 = undefined;
+var fba = std.heap.FixedBufferAllocator.init(&buf);
+const a = fba.allocator();
+
+const s = try a.alloc(u8, 100);
+```
+
+Аллокатор работает в заранее выделенном буфере и не обращается к куче. Когда место заканчивается, возвращается `error.OutOfMemory`. Такой аллокатор используют во встраиваемых системах и горячих путях, где `malloc` недопустим.
+
+## defer и errdefer
+
+```zig
+fn load(gpa: std.mem.Allocator) ![]u8 {
+    const buf = try gpa.alloc(u8, 1024);
+    errdefer gpa.free(buf);
+
+    const extra = try gpa.alloc(u8, 64);
+    errdefer gpa.free(extra);
+
+    gpa.free(extra);
+    return buf;
+}
+```
+
+`defer` выполняется всегда. `errdefer` выполняется только при выходе с ошибкой. В примере `extra` освобождается вручную при успехе, а при ошибке на любом шаге сработают `errdefer`. `buf` переходит вызывающему, поэтому на успешном пути его не освобождают.
+
+## Что под капотом
+
+`std.mem.Allocator` это структура из двух полей.
+
+```zig
+pub const Allocator = struct {
+    ptr: *anyopaque,
+    vtable: *const VTable,
+};
+```
+
+`vtable` содержит `alloc`, `resize`, `remap` и `free`. Конкретный аллокатор подставляет свои функции. Код принимает `Allocator` и не знает, арена это, DebugAllocator или C `malloc`.
+
+`DebugAllocator` лежит в `lib/std/heap/debug_allocator.zig`. Он хранит метаданные о каждом выделении, проверяет границы, ловит double free и утечки. В release-сборке его накладные расходы обычно не нужны.
+
+`ArenaAllocator` в `lib/std/heap/ArenaAllocator.zig` выделяет большие блоки и раздает из них куски. `free` не освобождает отдельный кусок, а `deinit` проходит по списку блоков.
+
+`std.ArrayList` в `lib/std/array_list.zig` хранит буфер `[]T`, `capacity` и длину. Аллокатор передается в каждый метод, потому что список не хранит его внутри и может использовать разные аллокаторы для разных операций.
+
+## Где ломается
+
+**Каждое выделение должно быть освобождено.** Сборщика мусора нет. Если функция вернула `[]u8`, вызывающий должен знать, кто владеет памятью и когда ее освобождать.
+
+**`defer` ставят сразу после выделения.** Если поставить его в конце функции, ранний `return` утечет память. Правило простое: выделил, сразу записал `defer`.
+
+**`errdefer` не заменяет `defer`.** Для ресурса, который живет до успешного возврата, нужен `errdefer`. Для ресурса, который освобождается в любом случае, нужен `defer`.
+
+**Память арены не освобождают вручную.** `arena.allocator().free(...)` ничего не делает. Освобождение выполняется через `arena.deinit()`.
+
+**`ArrayList.deinit` требует тот же аллокатор.** Список не хранит аллокатор. Если передать другой, получится ошибка или повреждение памяти.
+
+**`toOwnedSlice` меняет владельца.** После вызова список обнуляется, а полученный срез ты освобождаешь через тот же аллокатор.
+
+**`init.gpa` не глобальный аллокатор.** Это удобный аллокатор, созданный рантаймом. В библиотечном коде его не берут из ниоткуда, а принимают `Allocator` параметром.
+
+**Проверка утечек работает не везде.** `page_allocator` и C `malloc` вне контроля `DebugAllocator`. В тестах ты передаешь `std.testing.allocator`.
+
+**`alloc(0)` это особый случай.** Нулевое выделение может вернуть пустой срез. Не полагайся на уникальность указателя.
+
+<TaskForLesson lesson="14-allokatory-i-vladenie-pamyatyu" />

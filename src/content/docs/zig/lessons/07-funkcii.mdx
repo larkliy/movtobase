@@ -1,0 +1,172 @@
+---
+title: "7. Функции"
+description: "Параметры в Zig неизменяемы, return обязателен, а дженерики работают через comptime T и anytype. Разбираем сигнатуры и указатели на функции."
+course: zig
+lesson: 7
+part: 1
+duration: 5
+tags: ["functions", "scope"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Сигнатура и параметры
+
+Функция объявляет тип каждого параметра и тип возврата. Неявных преобразований в сигнатуре нет.
+
+```zig
+const std = @import("std");
+
+fn add(a: i32, b: i32) i32 {
+    return a + b;
+}
+
+fn noReturn(x: i32) void {
+    _ = x;
+}
+```
+
+`fn` начинает объявление. После имени идут параметры, затем тип возврата и тело. `pub` открывает функцию для других модулей.
+
+Параметр приходит как `const`. Попытка `x += 1` внутри тела не собирается с `cannot assign to constant`. Для изменения нужна локальная копия.
+
+```zig
+fn mutate(x: i32) i32 {
+    var y = x;
+    y += 1;
+    return y;
+}
+```
+
+Zig не возвращает последнее выражение автоматически. В Rust выражение без точки с запятой становится результатом, в Zig нужен `return`. Если написать `x * 2` в конце функции, компилятор потребует точку с запятой и сообщит, что функция не вернула значение.
+
+Тип возврата обязателен. Компилятор не выводит его из тела. Сигнатура остается контрактом, который видит вызывающий код.
+
+## Дженерики без шаблонного синтаксиса
+
+Первый способ получить generic-функцию: параметр `comptime T: type`.
+
+```zig
+fn doubleIt(comptime T: type, value: T) T {
+    return value * 2;
+}
+
+const a = doubleIt(u8, 7);
+const b = doubleIt(i32, 7);
+```
+
+`comptime T` означает, что аргумент известен на этапе компиляции. Для каждого типа компилятор создает отдельную специализацию функции. `doubleIt(u8, 7)` и `doubleIt(i32, 7)` это две разные функции в бинарнике.
+
+Второй способ: `anytype`. Тип выводится из аргумента.
+
+```zig
+fn identity(value: anytype) @TypeOf(value) {
+    return value;
+}
+```
+
+`@TypeOf(value)` возвращает тип выражения. Так `identity` сохраняет тип аргумента.
+
+`inline` требует встроить тело в место вызова.
+
+```zig
+inline fn square(x: i32) i32 {
+    return x * x;
+}
+```
+
+Это подсказка компилятору, а не отдельный механизм. Для маленьких функций в горячем пути встраивание убирает вызов.
+
+## Функция как значение
+
+Ты можешь взять функцию по адресу и передать в другую функцию.
+
+```zig
+fn double(x: i32) i32 {
+    return x * 2;
+}
+
+fn applyTwice(f: *const fn (i32) i32, x: i32) i32 {
+    return f(f(x));
+}
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    try out.interface.print("applyTwice: {d}\n", .{applyTwice(&double, 5)});
+
+    const fp: *const fn (i32, i32) i32 = &add;
+    try out.interface.print("fp: {d}\n", .{fp(10, 20)});
+
+    try out.flush();
+}
+```
+
+Тип указателя на функцию записывается как `*const fn (параметры) возврат`. Амперсанд `&double` берет адрес. Вызов через указатель выглядит как обычный вызов.
+
+## Что под капотом
+
+`@typeInfo` описывает функцию структурой `Fn`.
+
+```zig
+pub const Fn = struct {
+    attrs: Attributes,
+    is_generic: bool,
+    return_type: ?type,
+    param_types: []const ?type,
+    param_attrs: []const ParamAttributes,
+    // ...
+};
+```
+
+`return_type` и элементы `param_types` имеют тип `?type`, потому что для generic-функции тип возврата или параметра может зависеть от аргумента. В этом случае поле равно `null`, а `is_generic` равно `true`.
+
+Атрибуты функции включают calling convention.
+
+```zig
+pub const CallingConvention = union(enum(u8)) {
+    auto,
+    @"inline",
+    // x86_64_sysv, x86_64_win, c, winapi и другие
+};
+```
+
+`auto` это обычное соглашение Zig. `@"inline"` соответствует ключевому слову `inline`. `c` и `winapi` нужны для вызова внешних функций.
+
+`std.math.maxInt` показывает, как стандартная библиотека использует `comptime T`.
+
+```zig
+pub fn maxInt(comptime T: type) comptime_int {
+    const info = @typeInfo(T).int;
+    return (1 << (info.bits - @intFromBool(info.signedness == .signed))) - 1;
+}
+```
+
+Тип известен при компиляции, поэтому функция вычисляется при компиляции и возвращает `comptime_int`.
+
+`std.mem.print` использует `anytype` для аргументов форматирования.
+
+```zig
+pub fn print(buffer: []u8, comptime format: []const u8, args: anytype) PrintError![]u8 {
+    // ...
+}
+```
+
+`format` известен компилятору, `args` это кортеж значений. Пара `comptime format` и `anytype args` покрывает вызовы с переменным числом аргументов.
+
+## Где ломается
+
+**Параметр нельзя изменить.** `fn f(x: i32) { x += 1; }` не собирается. Верни новое значение или прими указатель, если нужен побочный эффект.
+
+**Нет неявного возврата.** Последнее выражение без `return` не становится результатом. Компилятор сообщает `expected ';' after statement`, потому что видит выражение-оператор.
+
+**Тип возврата не выводится.** Ты пишешь его в сигнатуре. Поэтому контракт функции не зависит от тела.
+
+**`anytype` создает специализацию под каждый тип.** Вызов с `u8` и с `[]const u8` дает две функции в бинарнике. Для большой функции это увеличивает код. Если набор типов известен, `comptime T: type` ограничивает специализации явно.
+
+**Адрес `inline`-функции не берется.** Если функция должна лежать в указателе, не помечай ее `inline`.
+
+**Типы указателей строгие.** `*const fn (i32) i32` и `*const fn (i64) i64` это разные типы. При передаче функции сигнатуры должны совпадать точно, без неявных преобразований.
+
+<TaskForLesson lesson="07-funkcii" />

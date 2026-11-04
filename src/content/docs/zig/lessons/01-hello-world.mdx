@@ -1,0 +1,102 @@
+---
+title: "1. Первый hello world"
+description: "В Zig 0.17 main получает std.process.Init с аргументами, окружением, аллокатором и std.Io. Разбираем минимальную программу и путь байтов до терминала."
+course: zig
+lesson: 1
+part: 1
+duration: 5
+tags: ["hello world", "stdio"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Минимальная программа
+
+```zig
+const std = @import("std");
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var stdout = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    try stdout.interface.print("Hello, {s}!\n", .{"world"});
+    try stdout.flush();
+}
+```
+
+`@import("std")` подключает стандартную библиотеку. Компилятор обрабатывает импорт на этапе компиляции, и Zig не требует отдельного рантайма.
+
+`main` принимает `std.process.Init`. Внутри лежат аргументы командной строки, переменные окружения, `gpa`, `io`, арена и preopens. Рантайм собирает эту структуру до вызова `main`.
+
+`!void` это error union. Функция возвращает либо `void`, либо ошибку. Компилятор разрешает у `main` только `void`, `!void`, `noreturn`, `u8` и `!u8`.
+
+`var buffer: [4096]u8 = undefined` выделяет 4 КБ на стеке. `writerStreaming` сохраняет указатель на буфер и пишет в него. `std.Io.File.stdout()` возвращает `File` с handle стандартного вывода. Поле `interface` имеет тип `Io.Writer`, и методы `print`, `writeAll`, `flush` объявлены там.
+
+`try` проверяет error union. При ошибке он возвращает ее из `main`, при успехе отдает значение. `flush` отправляет байты из буфера в файл.
+
+Короткий вариант без ручного writer:
+
+```zig
+pub fn main(init: std.process.Init) !void {
+    try std.Io.File.stdout().writeStreamingAll(init.io, "Hello, world!\n");
+}
+```
+
+`writeStreamingAll` создает writer, записывает строку и сбрасывает буфер.
+
+## Что рантайм делает до вызова main
+
+Компилятор прилинковывает стартовый код из `lib/std/start.zig`. Этот код экспортирует `_start`, а `_start` вызывает `callMain`. `callMain` создает `DebugAllocator` в debug-сборке, арену, `std.Io.Threaded`, карту окружения и preopens.
+
+```zig
+pub const Init = struct {
+    minimal: Minimal,
+    arena: *std.heap.ArenaAllocator,
+    gpa: Allocator,
+    io: Io,
+    environ_map: *Environ.Map,
+    preopens: Preopens,
+};
+```
+
+`wrapMain` смотрит на тип возврата. Если `main` вернул ошибку, `wrapMain` пишет ее через `std.log.err` и завершает процесс с кодом 1.
+
+```zig
+const unwrapped_result = result catch |err| {
+    std.log.err("{t}", .{err});
+    return 1;
+};
+```
+
+`{t}` печатает имя ошибки. Тот же спецификатор работает с enum.
+
+`std.Io.File.stdout()` возвращает handle. На Windows это `hStdOutput` из PEB процесса, на POSIX файловый дескриптор 1.
+
+```zig
+pub fn stdout() File {
+    return switch (native_os) {
+        .windows => .{
+            .handle = std.os.windows.peb().ProcessParameters.hStdOutput,
+            .flags = .{ .nonblocking = false },
+        },
+        else => .{
+            .handle = std.posix.STDOUT_FILENO,
+            .flags = .{ .nonblocking = false },
+        },
+    };
+}
+```
+
+`print` объявлен в `lib/std/Io/Writer.zig`. Строку формата компилятор разбирает на этапе компиляции и проверяет типы аргументов. Один вызов принимает не больше 32 аргументов, иначе сборка падает с `@compileError("32 arguments max are supported per format call")`.
+
+## Где ломается
+
+**Забыл `flush`.** Writer копит байты в стековом буфере. Пока буфер не заполнился, файл ничего не получает. Программа завершается, вывод остается в буфере.
+
+**Написал `stdout.print`.** У `File.Writer` нет метода `print`. Компилятор вернет `no field or member function named 'print' in 'Io.File.Writer'`. Нужен `stdout.interface.print`.
+
+**Взял API из старого туториала.** `std.io.getStdOut()` в 0.17 нет. `std.debug.print` остался, но пишет в stderr и использует внутренний буфер.
+
+**Вернул `i32` из `main`.** Компилятор скажет `expected return type of main to be 'void', '!void', 'noreturn', 'u8', or '!u8'`. Код выхода возвращается как `u8`.
+
+<TaskForLesson lesson="01-hello-world" />

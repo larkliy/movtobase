@@ -1,0 +1,182 @@
+---
+title: "6. Циклы while и for"
+description: "В Zig два цикла: while с отдельным шагом и for по коллекциям. Разбираем метки, захват optional и то, как циклы выглядят в std.mem."
+course: zig
+lesson: 6
+part: 1
+duration: 5
+tags: ["loops", "while/for"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## while
+
+`while` проверяет условие перед каждой итерацией. Шаг записывается после двоеточия и выполняется после тела.
+
+```zig
+const std = @import("std");
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    var i: u8 = 0;
+    while (i < 3) : (i += 1) {
+        try out.interface.print("i={d}\n", .{i});
+    }
+
+    try out.flush();
+}
+```
+
+Шаг выполняется и после `continue`. Это убирает ошибку, когда в C-цикле забывают `i++` в ветке `continue`.
+
+`while` умеет захватывать optional.
+
+```zig
+var counter: ?u8 = 3;
+while (counter) |c| {
+    counter = if (c > 0) c - 1 else null;
+}
+```
+
+Цикл работает, пока `counter` не станет `null`.
+
+Условие может быть `true`, а выход выполняется через `break` или `return`. Так пишут циклы с проверкой в конце.
+
+```zig
+var n: usize = 10;
+while (true) : (n -= 1) {
+    if (n == 0) break;
+}
+```
+
+## for
+
+`for` перебирает массив, срез или диапазон. Индекс получается через второй аргумент.
+
+```zig
+const arr = [_]u8{ 10, 20, 30 };
+for (arr, 0..) |item, idx| {
+    try out.interface.print("arr[{d}] = {d}\n", .{ idx, item });
+}
+```
+
+`0..` создает последовательность индексов без верхней границы. Компилятор берет длину из `arr`.
+
+По строке `for` идет по байтам.
+
+```zig
+for ("hi!") |c| {
+    try out.interface.print("{c} ", .{c});
+}
+```
+
+Несколько последовательностей перебираются параллельно. Их длины должны совпадать. В safe-режиме несовпадение вызывает панику, в release это UB.
+
+```zig
+const a = [_]u8{ 1, 2, 3 };
+const b = [_]u8{ 4, 5, 6 };
+for (a, b) |x, y| {
+    try out.interface.print("{d}+{d}={d}\n", .{ x, y, x + y });
+}
+```
+
+Диапазон `0..3` дает 0, 1, 2. Правая граница не включается.
+
+```zig
+for (0..3) |n| {
+    try out.interface.print("{d}\n", .{n});
+}
+```
+
+Чтобы менять элементы массива, итерируйся по указателю.
+
+```zig
+var nums = [_]u8{ 1, 2, 3 };
+for (&nums) |*item| {
+    item.* *= 10;
+}
+```
+
+`item` имеет тип `*u8`, а `item.*` это само значение.
+
+Метки позволяют управлять вложенными циклами.
+
+```zig
+const arr2 = [_]u8{ 10, 20, 30 };
+outer: for (arr2) |x| {
+    for (arr2) |y| {
+        if (y == 20) continue :outer;
+        if (x == 30) break :outer;
+    }
+}
+```
+
+`continue :outer` переходит к следующей итерации внешнего цикла. `break :outer` выходит из обоих циклов.
+
+Цикл может вернуть значение через `break` с меткой.
+
+```zig
+const result = blk: while (true) {
+    break :blk 99;
+};
+```
+
+Здесь `result` равен 99. Метка `blk` помечает блок, а не цикл, но внутри цикла она видна.
+
+## Как циклы пишут в std
+
+В `std.mem.eql` два среза перебираются одним `for`.
+
+```zig
+for (a, b) |a_elem, b_elem| {
+    if (a_elem != b_elem) return false;
+}
+```
+
+Ручные индексы не нужны. Длины уже проверены выше.
+
+`findPosLinear` использует `while` с шагом в заголовке.
+
+```zig
+var i: usize = start_index;
+const end = haystack.len - needle.len;
+while (i <= end) : (i += 1) {
+    if (eql(T, haystack[i..][0..needle.len], needle)) return i;
+}
+return null;
+```
+
+Тело ищет совпадение, шаг увеличивает индекс. В `findLastLinear` цикл идет назад.
+
+```zig
+var i: usize = haystack.len - needle.len;
+while (true) : (i -= 1) {
+    if (mem.eql(T, haystack[i..][0..needle.len], needle)) return i;
+    if (i == 0) return null;
+}
+```
+
+Условие здесь `true`, потому что проверка `i == 0` стоит после сравнения. Так удобнее, когда условие выхода зависит от результата внутри тела.
+
+## Где ломается
+
+**Сишного `for (init; cond; step)` нет.** Вместо него пишут `while (i < n) : (i += 1)` или `for (0..n) |i|`.
+
+**Переменная `for` неизменяема.** `for (arr) |item|` дает копию элемента. `item *= 10` не собирается с `cannot assign to constant`. Для изменения нужен захват по указателю.
+
+**`continue` не пропускает шаг.** В `while (i < 5) : (i += 1)` вызов `continue` все равно выполнит `i += 1`. Это защищает от бесконечного цикла, но шаг должен быть корректным при любом пути.
+
+**`0..n` не включает `n`.** `for (0..3) |i|` дает 0, 1, 2. Левая граница входит, правая нет.
+
+**`do..while` нет.** Нужен цикл с проверкой в конце, пиши `while (true)` и ставь `break` в нужном месте.
+
+**Метка ставится перед циклом.** Синтаксис `outer: for (...)`, а в `break :outer` и `continue :outer` двоеточие обязательно. Без метки `break` выходит только из ближайшего цикла.
+
+**Длины параллельных срезов должны совпадать.** `for (a, b)` не идет до короткого. Компилятор вставляет проверку равенства длин. Если длины известны только в runtime, проверь их до цикла.
+
+**`%` не работает со знаковыми целыми.** Для `i32` выражение `i % 3` не собирается. Выбери `@rem(i, 3)` или `@mod(i, 3)`. `@rem` сохраняет знак делимого, `@mod` знак делителя.
+
+<TaskForLesson lesson="06-cikly" />

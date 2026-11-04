@@ -1,0 +1,190 @@
+---
+title: "8. Структуры"
+description: "Структура хранит данные и методы, а порядок полей зависит от layout. Разбираем auto, extern, packed и стоимость выравнивания."
+course: zig
+lesson: 8
+part: 1
+duration: 5
+tags: ["structs", "methods"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Объявление и методы
+
+Структура объединяет поля под одним именем. В Zig нет классов и наследования. Есть `struct`, внутри которого лежат данные, константы и функции.
+
+```zig
+const std = @import("std");
+
+const Point = struct {
+    x: i32,
+    y: i32,
+};
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    const p = Point{ .x = 3, .y = 4 };
+    try out.interface.print("x={d} y={d}\n", .{ p.x, p.y });
+
+    try out.flush();
+}
+```
+
+Литерал `Point{ .x = 3, .y = 4 }` создает значение. Поля без значения по умолчанию обязательны. Если пропустить `y`, компилятор скажет `missing struct field`.
+
+Значения по умолчанию задаются в объявлении.
+
+```zig
+const Player = struct {
+    name: []const u8,
+    hp: u32 = 100,
+    score: u32 = 0,
+};
+
+const hero = Player{ .name = "hero" };
+```
+
+Здесь `hp` и `score` берутся из объявления.
+
+Метод это обычная функция с явным первым параметром.
+
+```zig
+const Point = struct {
+    x: i32,
+    y: i32,
+
+    fn distance2(self: Point) i32 {
+        return self.x * self.x + self.y * self.y;
+    }
+};
+```
+
+Вызов `p.distance2()` передает `p` в параметр `self`. Неявного `this` нет.
+
+Если метод меняет поля, он принимает указатель.
+
+```zig
+const Counter = struct {
+    count: u32 = 0,
+
+    const Self = @This();
+
+    pub fn incr(self: *Self) void {
+        self.count += 1;
+    }
+};
+
+var c = Counter{};
+c.incr();
+```
+
+`@This()` возвращает тип текущей структуры. `*Self` дает доступ к полям по указателю. Компилятор видит, что `incr` принимает `*Counter`, и при вызове `c.incr()` подставляет `&c`.
+
+Ты меняешь поля только у `var`-экземпляра.
+
+```zig
+var p = Point{ .x = 3, .y = 4 };
+p.x = 10;
+
+const q = Point{ .x = 1, .y = 2 };
+// q.x = 5; // cannot assign to constant
+```
+
+## Как поля лежат в памяти
+
+По умолчанию Zig использует layout `auto`. Компилятор может переставлять поля, чтобы уменьшить padding.
+
+```zig
+const Auto = struct { a: u8, b: u32, c: u8 };
+const External = extern struct { a: u8, b: u32, c: u8 };
+
+@sizeOf(Auto)      // 8
+@sizeOf(External)  // 12
+```
+
+На x86_64 поле `b` требует выравнивания 4. В `Auto` компилятор ставит `b` на смещение 0, а `a` и `c` на 4 и 5. Итог 8 байт. В `External` порядок сохраняется: `a` на 0, три байта padding, `b` на 4, `c` на 8, еще три байта padding. Итог 12 байт.
+
+Проверь точные смещения через `@offsetOf`.
+
+```zig
+@offsetOf(Auto, "a")  // 4
+@offsetOf(Auto, "b")  // 0
+@offsetOf(Auto, "c")  // 5
+```
+
+Порядок полей в `auto` не является частью контракта. Если структура уходит в файл, в сеть или в C-функцию, нужен `extern` с фиксированным layout.
+
+`packed` упаковывает поля вплотную, вплоть до отдельных бит.
+
+```zig
+const Flags = packed struct {
+    a: u3,
+    b: u1,
+    c: u4,
+};
+
+@sizeOf(Flags) // 1
+```
+
+`u3 + u1 + u4` дают ровно 8 бит. Доступ к полю может требовать сдвигов и масок, поэтому `packed` выбирают ради компактности, а не ради скорости.
+
+## Что под капотом
+
+`@typeInfo` описывает структуру через `Struct`.
+
+```zig
+pub const Struct = struct {
+    is_tuple: bool,
+    layout: ContainerLayout,
+    backing_integer: ?type,
+    field_names: []const [:0]const u8,
+    field_types: []const type,
+    field_attrs: []const FieldAttributes,
+    decl_names: []const [:0]const u8,
+    // ...
+};
+```
+
+`is_tuple` отличает именованную структуру от анонимного кортежа. `layout` принимает одно из трех значений.
+
+```zig
+pub const ContainerLayout = enum(u2) {
+    auto,
+    @"extern",
+    @"packed",
+};
+```
+
+`auto` разрешает компилятору менять порядок. `@"extern"` фиксирует C-layout. `@"packed"` упаковывает поля без padding.
+
+Значения по умолчанию хранятся в атрибутах поля.
+
+```zig
+pub const FieldAttributes = struct {
+    @"comptime": bool = false,
+    @"align": ?usize = null,
+    default_value_ptr: ?*const anyopaque = null,
+    // ...
+};
+```
+
+`default_value_ptr` указывает на значение по умолчанию, стертое до `anyopaque`. Компилятор кладет `100` в бинарник и записывает адрес в атрибут. При создании `Player{ .name = "hero" }` пропущенные поля копируются из этих значений.
+
+## Где ломается
+
+**Пропущенное поле.** Литерал `S{ .a = 1 }` для `struct { a: u8, b: u8 }` не собирается с `missing struct field: b`. Исключение составляют поля со значением по умолчанию.
+
+**`const`-экземпляр неизменяем.** `const p = Point{...}; p.x = 5;` не собирается. Изменяемость определяется объявлением переменной, а не полями структуры.
+
+**Порядок полей в `auto` не гарантирован.** Если структура пересекает границу модуля, файла или C-вызова, используй `extern`. Если нужен битовый layout, используй `packed`.
+
+**У метода нет неявного получателя.** Первый параметр пишется явно. Без него функция остается обычной функцией внутри namespace структуры.
+
+**Наследования нет.** Полиморфизм строится на `union(enum)`, указателях и явных таблицах функций. Композиция предпочтительнее копирования иерархии классов.
+
+**`packed` замедляет доступ.** Поле может пересекать границу байта, и компилятор добавляет битовые операции. Для горячего пути проверяй ассемблер и замеряй.
+
+<TaskForLesson lesson="08-struktury" />

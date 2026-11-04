@@ -1,0 +1,170 @@
+---
+title: "18. Ошибки в продакшене"
+description: "Ошибки проектируют: явные наборы, контекст, откат ресурсов, отмена и коды выхода. Разбираем рабочие приемы для Zig."
+course: zig
+lesson: 18
+part: 3
+duration: 5
+tags: ["errors", "production"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Явные наборы ошибок
+
+В уроке 4 разобраны `try`, `catch`, error sets и `errdefer`. В рабочем коде этого мало. Ты разделяешь ошибки на ожидаемые и неожиданные, добавляешь контекст, освобождаешь ресурсы и корректно отменяешь операции.
+
+Явный набор ошибок задает контракт функции.
+
+```zig
+const std = @import("std");
+
+const LoadError = error{
+    NotFound,
+    AccessDenied,
+    InvalidFormat,
+};
+
+fn load(path: []const u8) LoadError![]u8 {
+    if (path.len == 0) return error.NotFound;
+    return error.InvalidFormat;
+}
+```
+
+Вызывающий видит три возможные ошибки и может обработать каждую отдельно. `!T` без набора тоже допустим, но для публичного API лучше явный набор. `anyerror` скрывает список и подходит для границ приложения, а не для библиотек.
+
+## Разбор ошибки
+
+```zig
+const data = load(path) catch |err| switch (err) {
+    error.NotFound => {
+        try out.interface.print("file not found: {s}\n", .{path});
+        return;
+    },
+    error.AccessDenied => return err,
+    error.InvalidFormat => {
+        try out.interface.print("bad format\n", .{});
+        return;
+    },
+};
+```
+
+`switch` по ошибке требует покрыть все варианты набора. Для большого набора добавляется `else`. Ветка может вернуть ошибку наверх, залогировать ее или заменить значение.
+
+## errdefer и порядок очистки
+
+```zig
+fn readAll(gpa: std.mem.Allocator, path: []const u8) ![]u8 {
+    const file = try open(path);
+    errdefer close(file);
+
+    const buf = try gpa.alloc(u8, 4096);
+    errdefer gpa.free(buf);
+
+    const n = try read(file, buf);
+    return gpa.realloc(buf, n);
+}
+```
+
+Если `read` вернет ошибку, сначала выполнится `gpa.free(buf)`, затем `close(file)`. `errdefer` выполняются в обратном порядке объявления, как и `defer`.
+
+При успехе `errdefer` не срабатывают. Буфер уходит вызывающему, файл закрывается только при ошибке. Если файл закрывается в любом случае, ставь `defer close(file)`.
+
+## Контекст ошибки
+
+Zig не добавляет стек ошибки автоматически. `@errorReturnTrace()` возвращает цепочку адресов, если трассировка включена.
+
+```zig
+const data = load(path) catch |err| {
+    if (@errorReturnTrace()) |trace| {
+        std.debug.dumpStackTrace(trace);
+    }
+    return err;
+};
+```
+
+В release-режиме трассировка может быть отключена. Для пользовательских сообщений контекст добавляют вручную.
+
+```zig
+std.log.err("failed to load {s}: {s}", .{ path, @errorName(err) });
+```
+
+Здесь видны операция, путь и имя ошибки. Этого достаточно, чтобы найти проблему без отладчика.
+
+## Отмена
+
+Новый I/O умеет отменять операции. Отменяемая функция возвращает `std.Io.Cancelable!T`.
+
+```zig
+fn slow(io: std.Io) std.Io.Cancelable!void {
+    try std.Io.sleep(io, std.Io.Duration.fromSeconds(10), .awake);
+}
+
+var future = try std.Io.concurrent(init.io, slow, .{init.io});
+try std.Io.sleep(init.io, std.Io.Duration.fromMilliseconds(20), .awake);
+future.cancel(init.io) catch |err| switch (err) {
+    error.Canceled => {},
+};
+```
+
+`future.cancel(init.io)` запрашивает отмену и ждет завершения. Если операция действительно отменена, возвращается `error.Canceled`. Игнорировать ее нельзя: после отмены состояние может быть частично изменено.
+
+## Коды выхода
+
+`main` может вернуть `u8` или `!u8`.
+
+```zig
+pub fn main(init: std.process.Init) !u8 {
+    _ = init;
+    return 1;
+}
+```
+
+Для немедленного выхода есть `std.process.exit(code)`. Он не выполняет `defer`, поэтому использовать его стоит только в самом конце или в аварийной ситуации.
+
+## Что под капотом
+
+Error union описан в `lib/std/lang.zig`.
+
+```zig
+pub const ErrorUnion = struct {
+    error_set: type,
+    payload: type,
+};
+```
+
+Компилятор представляет error union как тег ошибки и payload. Error set это набор имен, которым соответствуют небольшие целые. Поэтому ошибки дешевы, но `anyerror` может занимать больше места, чем явный набор.
+
+`@errorReturnTrace` и `std.builtin.StackTrace` описаны в `lib/std/lang.zig` и `lib/std/debug.zig`. Трассировка включается в debug и safe-режимах и требует поддержки рантайма. В `ReleaseFast` и `ReleaseSmall` она обычно отключена.
+
+`std.Io.Cancelable` это error set.
+
+```zig
+pub const Cancelable = error{Canceled};
+```
+
+`std.Io.Future(T)` в `lib/std/Io.zig` хранит `any_future` и `result`. `await` и `cancel` вызывают vtable реализации. `std.Io.Group` запускает несколько задач и отменяет их вместе. Это не async/await из других языков, а явный API с futures и отменой.
+
+## Где ломается
+
+**`error.Canceled` нельзя глотать.** После отмены нельзя продолжать так, будто ничего не случилось. Верни ошибку наверх или заверши работу.
+
+**`catch unreachable` это обещание.** Если ошибка все-таки случится, safe-режим паникует, release дает UB. Применяй только там, где ошибка невозможна по контракту.
+
+**`errdefer` не срабатывает при успехе.** Для ресурса, который освобождается всегда, нужен `defer`. Для ресурса, который передается наружу при успехе, нужен `errdefer`.
+
+**Порядок очистки важен.** `defer` выполняются в обратном порядке. Если один ресурс зависит от другого, объявляй их в правильном порядке.
+
+**`anyerror` раздувает код.** Каждый `catch` с большим набором может генерировать много веток. Для библиотек нужны явные наборы, для границ приложения допустим `anyerror`.
+
+**`@errorReturnTrace` не бесплатен.** Он включен не во всех режимах и увеличивает бинарник. В горячем пути его не используют.
+
+**Не теряй контекст.** `return err` без логирования хорош внутри библиотеки. На границе приложения скажи, что именно упало и с какими данными.
+
+**Отмена не откатывает побочные эффекты.** Если файл уже записан или пакет отправлен, отмена это не отменит. Операции делают идемпотентными или добавляют явный откат.
+
+**`std.process.exit` не выполняет `defer`.** Ресурсы останутся в том состоянии, в котором были.
+
+**`main` принимает не любой тип.** Разрешены `void`, `!void`, `u8`, `!u8` и `noreturn`. `i32` компилятор не примет.
+
+<TaskForLesson lesson="18-oshibki-v-produktsii" />

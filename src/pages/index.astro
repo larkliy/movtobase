@@ -1,0 +1,162 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { Code } from '@astrojs/starlight/components';
+import { csharpArticles, zigLessons, zigTotal } from '../data/courses';
+
+const base = import.meta.env.BASE_URL;
+const href = (path: string) => base.replace(/\/$/, '') + path;
+const first = zigLessons[0];
+const csharp = csharpArticles[0];
+
+const snippet = `const std = @import("std");
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var stdout = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    try stdout.interface.print("Hello, {s}!\\n", .{"world"});
+    try stdout.flush();
+}`;
+
+const lessonData = zigLessons.map((lesson) => ({
+  slug: lesson.slug,
+  number: lesson.number,
+  part: lesson.part,
+  title: `${lesson.number}. ${lesson.title}`,
+  href: href(`/zig/lessons/${lesson.slug}/`),
+}));
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'movtobase',
+    description: 'База знаний по системному программированию: C# Low Level + Zero Allocations и Zig 0.17.0 с нуля.',
+    template: 'splash',
+  }}
+  hasSidebar={false}
+>
+  <style is:global>
+    main > .content-panel:first-child { display: none; }
+    main { --sl-content-width: 74rem; }
+  </style>
+
+  <div class="mb-home">
+    <section class="mb-hero">
+      <div class="mb-hero-copy">
+        <span class="mb-pill">Бесплатно · Без регистрации · 2026</span>
+        <h1>Системное программирование <span>без магии</span></h1>
+        <p>
+          Разбираем, как код устроен под капотом: GC, аллокации, память, I/O.
+          Два курса — C# Low Level и Zig 0.17.0.
+        </p>
+        <div class="mb-hero-actions">
+          <a class="mb-btn mb-btn--primary" href={href('/zig/')}>Начать с Zig <span>→</span></a>
+          <a class="mb-btn" href={href('/csharp/')}>Смотреть C# Low Level</a>
+        </div>
+        <div class="mb-stats">2 курса <span>·</span> 30 материалов <span>·</span> 59 000 слов</div>
+      </div>
+
+      <div class="mb-hero-code">
+        <div class="mb-code-glow"></div>
+        <div class="mb-code-card">
+          <div class="mb-code-badges">
+            <span>std.Io</span>
+            <span>0 allocations</span>
+          </div>
+          <Code code={snippet} lang="zig" title="main.zig" frame="code" />
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-continue" data-continue-card>
+      <div class="mb-continue-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5V5a2 2 0 0 1 2-2h11l3 3v13.5" />
+          <path d="M8 7h6M8 11h8M8 15h5" />
+        </svg>
+      </div>
+      <div class="mb-continue-copy">
+        <span class="mb-kicker">Продолжить обучение</span>
+        <strong data-continue-title>{first.number}. {first.title}</strong>
+        <span class="mb-muted"><span data-continue-number>Урок {first.number}</span> · {first.partTitle} · {first.duration} мин</span>
+      </div>
+      <div class="mb-continue-progress">
+        <div class="mb-progress-head"><span data-progress-count>0/{zigTotal}</span></div>
+        <div class="mb-progress"><span data-progress-bar></span></div>
+      </div>
+      <a class="mb-btn mb-btn--primary mb-btn--sm" data-continue-href href={href(`/zig/lessons/${first.slug}/`)}>Продолжить <span>→</span></a>
+    </section>
+
+    <section class="mb-courses" id="courses">
+      <div class="mb-section-head">
+        <div>
+          <span class="mb-kicker">Курсы</span>
+          <h2>Выберите направление</h2>
+        </div>
+        <a href={href('/practice/')}>Все задачи →</a>
+      </div>
+
+      <div class="mb-course-grid">
+        <a class="mb-course-card mb-course-card--csharp" href={href('/csharp/')}>
+          <div class="mb-course-top">
+            <span class="mb-course-label">Курс</span>
+            <span class="mb-tag">C#</span>
+          </div>
+          <h3>C# Low Level + Zero Allocations</h3>
+          <p>Глубокое погружение для опытных: GC, Span/Memory, Unsafe, NativeAOT, zero-allocation TCP-сервер, Pipelines.</p>
+          <div class="mb-tags">
+            <span>GC</span><span>Span</span><span>Unsafe</span><span>NativeAOT</span><span>Pipelines</span>
+          </div>
+          <div class="mb-course-foot">
+            <span>{csharpArticles.length} разборов · 12 000 слов</span>
+            <span class="mb-arrow">→</span>
+          </div>
+        </a>
+
+        <a class="mb-course-card mb-course-card--zig" href={href('/zig/')}>
+          <div class="mb-course-top">
+            <span class="mb-course-label">Курс</span>
+            <span class="mb-tag mb-tag--zig">Zig 0.17</span>
+          </div>
+          <h3>Zig 0.17.0 с нуля</h3>
+          <p>Системное программирование без скрытого поведения. 24 урока, каждый с практической задачей и разбором.</p>
+          <div class="mb-tags">
+            <span>Аллокаторы</span><span>Comptime</span><span>C interop</span><span>Capstone</span>
+          </div>
+          <div class="mb-course-progress">
+            <div class="mb-progress"><span data-progress-bar></span></div>
+            <span data-progress-count>0/{zigTotal}</span>
+          </div>
+          <div class="mb-course-foot">
+            <span>24 урока · 3 части · задачи и решения</span>
+            <span class="mb-arrow">→</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section class="mb-how" id="about">
+      <span class="mb-kicker">Как устроены материалы</span>
+      <h2>Не просто синтаксис</h2>
+      <div class="mb-how-grid">
+        <div>
+          <span class="mb-how-icon">?</span>
+          <h3>Зачем это нужно</h3>
+          <p>Теория сразу переходит в практику, никакого лишнего шума.</p>
+        </div>
+        <div>
+          <span class="mb-how-icon">&lt;/&gt;</span>
+          <h3>Смотрим исходники std</h3>
+          <p>Разбираем внутреннее устройство стандартных библиотек.</p>
+        </div>
+        <div>
+          <span class="mb-how-icon">✓</span>
+          <h3>Задача и разбор</h3>
+          <p>Каждая тема закрепляется реальной задачей и её разбором.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="application/json" id="mb-lessons-data" set:html={JSON.stringify(lessonData)}></script>
+</StarlightPage>

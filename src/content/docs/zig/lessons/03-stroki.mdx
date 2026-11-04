@@ -1,0 +1,170 @@
+---
+title: "3. Строки"
+description: "Строка в Zig это срез []const u8 с длиной рядом с указателем. Разбираем литералы, sentinel, std.mem и ошибки при работе с UTF-8."
+course: zig
+lesson: 3
+part: 1
+duration: 5
+tags: ["strings", "memory"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Строка это срез байтов
+
+В C строка это `char*`, который заканчивается нулевым байтом. `strlen` идет по памяти, пока не встретит `\0`. Если терминатора нет, функция читает за границей буфера.
+
+В Zig строковый литерал имеет тип указателя на массив с sentinel.
+
+```zig
+const std = @import("std");
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    const lit = "hello";
+    try out.interface.print("literal type: {s}\n", .{@typeName(@TypeOf(lit))});
+    // *const [5:0]u8
+
+    try out.flush();
+}
+```
+
+`[5:0]u8` означает массив из пяти байтов, после которого лежит еще один байт со значением `0`. `*const` это указатель на такой массив. В памяти лежат шесть байтов `h e l l o \0`, но длина строки равна пяти.
+
+Для работы литерал приводят к срезу.
+
+```zig
+const name: []const u8 = "Heller";
+try out.interface.print("len: {d}\n", .{name.len});
+```
+
+Срез хранит указатель и длину. Компилятор отбрасывает информацию о sentinel и создает значение `[]const u8`. Копирования байтов здесь нет.
+
+Если тебе нужна строка с гарантированным нулем на конце, возьми `[:0]const u8`. Такой тип нужен для функций C, которые ждут `char*`.
+
+## Операции
+
+```zig
+const a: []const u8 = "hello";
+const b: []const u8 = "world";
+
+const same = std.mem.eql(u8, a, a);
+const starts = std.mem.startsWith(u8, "hello world", "hello");
+const ends = std.mem.endsWith(u8, "hello world", "world");
+const index = std.mem.indexOf(u8, "hello world", "world");
+const first_two = a[0..2];
+
+for (a) |byte| {
+    try out.interface.print("{c} ", .{byte});
+}
+```
+
+`std.mem.eql` сравнивает содержимое. `startsWith` и `endsWith` проверяют границы. `indexOf` возвращает `?usize`, то есть либо индекс, либо `null`. Срез `a[0..2]` указывает в те же байты, что и `a`.
+
+`for` по строке перебирает байты, а не символы. Для ASCII это одно и то же, для UTF-8 нет.
+
+Форматирование в готовый буфер делает `std.mem.print`.
+
+```zig
+var buf: [64]u8 = undefined;
+const s = try std.mem.print(&buf, "name={s} age={d}", .{ "Heller", 42 });
+try out.interface.print("built: {s}\n", .{s});
+```
+
+`std.mem.print` возвращает срез на буфер. Если места не хватило, возвращается `error.NoSpaceLeft`. Спецификаторы те же, что у `print`: `{s}` для строки, `{d}` для десятичного числа, `{x}` для hex, `{c}` для символа, `{any}` для отладочного вывода.
+
+## Что делает std.mem
+
+`std.mem.eql` сначала сравнивает длины. Если они разные, результат `false` без чтения байтов. Потом проверяет совпадение указателей на данные. Если указатели равны, строки совпадают. В остальных случаях идет цикл по элементам.
+
+```zig
+pub fn eql(comptime T: type, a: []const T, b: []const T) bool {
+    if (a.len != b.len) return false;
+    if (a.len == 0) return true;
+    if (@typeInfo(T) != .float and a.ptr == b.ptr) return true;
+
+    for (a, b) |a_elem, b_elem| {
+        if (a_elem != b_elem) return false;
+    }
+    return true;
+}
+```
+
+Для длинных строк в `lib/std/mem.zig` есть векторная версия `eqlBytes`, которая сравнивает по 16 или 32 байта за операцию.
+
+`find` ищет подстроку. На больших входах функция применяет Boyer-Moore-Horspool, на маленьких линейный перебор.
+
+```zig
+pub const indexOf = find;
+
+pub fn find(comptime T: type, haystack: []const T, needle: []const T) ?usize {
+    return findPos(T, haystack, 0, needle);
+}
+```
+
+`std.mem.print` это обертка над `std.Io.Writer` с фиксированным буфером.
+
+```zig
+pub fn print(buffer: []u8, comptime format: []const u8, args: anytype) PrintError![]u8 {
+    var w: std.Io.Writer = .fixed(buffer);
+    w.print(format, args) catch |err| switch (err) {
+        error.WriteFailed => return error.NoSpaceLeft,
+    };
+    return w.buffered();
+}
+```
+
+В отличие от `sprintf`, здесь нет молчаливого переполнения. Если результат не влез, вызывающий получает ошибку.
+
+Для динамического выделения есть `Allocator.print`. Он создает `std.Io.Writer.Allocating`, пишет в него и возвращает owned slice.
+
+```zig
+pub fn print(a: Allocator, comptime format: []const u8, args: anytype) Error![]u8 {
+    var aw = try std.Io.Writer.Allocating.initCapacity(a, format.len);
+    defer aw.deinit();
+    aw.writer.print(format, args) catch |err| switch (err) {
+        error.WriteFailed => return error.OutOfMemory,
+    };
+    return aw.toOwnedSlice();
+}
+```
+
+`std.fmt.bufPrint` и `std.fmt.allocPrint` остались тонкими deprecated-обертками.
+
+## Где ломается
+
+**`==` для срезов не работает.** `a == b` не собирается.
+
+```
+error: operator == not allowed for type '[]const u8'
+```
+
+Zig не угадывает, что ты хочешь сравнить: указатели или содержимое. Для содержимого нужен `std.mem.eql`.
+
+**`.len` считает байты.** В строке `"привет"` шесть символов, но каждый кириллический символ в UTF-8 занимает два байта, поэтому `len` вернет 12.
+
+```zig
+const ru = "привет";
+try out.interface.print("bytes: {d}\n", .{ru.len}); // 12
+try out.interface.print("codepoints: {d}\n", .{try std.unicode.utf8CountCodepoints(ru)}); // 6
+```
+
+Срез `ru[0..2]` отрежет один символ `п`. Срез `ru[0..1]` отрежет половину символа и даст битый байт. Для работы с символами нужен `std.unicode`.
+
+**Литерал это указатель, а не срез.** У `*const [5:0]u8` нет поля `.len`, как у среза. Длина известна из типа. В сигнатурах функций обычно указывают `[]const u8`, потому что срез принимает и литерал, и динамическую строку.
+
+**`++` работает на comptime.** `"foo" ++ "bar"` дает литерал `"foobar"`, потому что оба операнда известны компилятору. Для runtime-строк нужен `std.mem.concat` с аллокатором или `std.mem.print` в буфер.
+
+```zig
+var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+defer arena.deinit();
+const joined = try std.mem.concat(arena.allocator(), u8, &.{ a, b });
+```
+
+**Старые имена.** `std.fmt.bufPrint` и `std.fmt.allocPrint` помечены deprecated. В новом коде используются `std.mem.print` и `Allocator.print`.
+
+**Срез не гарантирует ноль.** `[]const u8` ничего не знает про `\0`. Если C-функция ждет `char*`, нужен `[:0]u8` или `[*:0]const u8`. Компилятор не даст передать обычный срез туда, где требуется sentinel-указатель.
+
+<TaskForLesson lesson="03-stroki" />

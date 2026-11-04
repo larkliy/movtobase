@@ -1,0 +1,163 @@
+---
+title: "16. Стандартная библиотека на практике"
+description: "Хеш-таблицы, сортировка, JSON, файлы, время, случайные числа и логи. Карта актуальных API std для Zig 0.17."
+course: zig
+lesson: 16
+part: 2
+duration: 5
+tags: ["std", "json"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Хеш-таблицы
+
+`std.StringHashMap(V)` хранит ключи `[]const u8`. `std.AutoHashMap(K, V)` работает с любым типом, для которого есть хеш.
+
+```zig
+pub fn main(init: std.process.Init) !void {
+    const gpa = init.gpa;
+
+    var counts = std.StringHashMap(u32).init(gpa);
+    defer counts.deinit();
+
+    try counts.put("apple", 3);
+    try counts.put("pear", 5);
+
+    if (counts.get("apple")) |n| {
+        std.debug.print("apple={d}\n", .{n});
+    }
+
+    var it = counts.iterator();
+    while (it.next()) |kv| {
+        std.debug.print("{s}={d}\n", .{ kv.key_ptr.*, kv.value_ptr.* });
+    }
+}
+```
+
+`put` вставляет или заменяет значение. `get` возвращает `?V`. `getOrPut` возвращает указатель на значение и флаг `found_existing`. Ключи не копируются автоматически. Если ключ указывает на временный буфер, таблица сохранит указатель, а буфер изменится. Для временных строк делай `dupe` и освобождай ключи.
+
+## Сортировка
+
+```zig
+const Item = struct {
+    name: []const u8,
+    count: u32,
+};
+
+fn lessThan(_: void, a: Item, b: Item) bool {
+    return a.count > b.count;
+}
+
+var items = [_]Item{
+    .{ .name = "pear", .count = 5 },
+    .{ .name = "apple", .count = 3 },
+};
+
+std.mem.sort(Item, &items, {}, lessThan);
+```
+
+`std.mem.sort` принимает тип, срез, контекст и компаратор. Компаратор возвращает `true`, если `a` должен идти раньше `b`. В 0.17 `std.mem.sort` стабильная, `std.mem.sortUnstable` быстрее, но не сохраняет порядок равных элементов.
+
+## JSON
+
+```zig
+const User = struct {
+    name: []const u8,
+    age: u8,
+};
+
+const user = User{ .name = "Heller", .age = 30 };
+try out.interface.print("{f}\n", .{std.json.fmt(user, .{})});
+
+const raw = "{\"name\":\"Heller\",\"age\":30}";
+const parsed = try std.json.parseFromSlice(User, gpa, raw, .{});
+defer parsed.deinit();
+try out.interface.print("{s} {d}\n", .{ parsed.value.name, parsed.value.age });
+```
+
+`std.json.fmt` создает форматтер для `{f}`. `parseFromSlice` разбирает байты в указанный тип. `parsed.deinit()` освобождает память, которую выделил парсер. Для JSON без известной схемы бери `std.json.Value`.
+
+## Файлы
+
+Файловые операции в 0.17 живут в `std.Io.Dir`.
+
+```zig
+const cwd = std.Io.Dir.cwd();
+
+try cwd.writeFile(init.io, .{ .sub_path = "demo.txt", .data = "hello\n" });
+
+const data = try cwd.readFileAlloc(init.io, "demo.txt", gpa, .limited(1 << 20));
+defer gpa.free(data);
+```
+
+`readFileAlloc` принимает лимит, чтобы файл не занял всю память. Для потокового чтения бери `openFile` и `readerStreaming`. Для записи `createFile` и `writerStreaming`.
+
+## Время
+
+`std.time.Timer` в 0.17 нет. Время и сон входят в `std.Io`.
+
+```zig
+const start = std.Io.Clock.Timestamp.now(init.io, .awake);
+try std.Io.sleep(init.io, std.Io.Duration.fromMilliseconds(10), .awake);
+const elapsed = start.untilNow(init.io);
+try out.interface.print("elapsed_ns={d}\n", .{elapsed.raw.nanoseconds});
+```
+
+`std.time` оставил константы вроде `ns_per_ms`, `ns_per_s` и `epoch`. Таймеры теперь в `std.Io`. Для измерения бери `Clock.Timestamp`, для паузы `Io.sleep`.
+
+## Случайные числа
+
+```zig
+var prng: std.Random.DefaultPrng = .init(42);
+const random = prng.random();
+const dice = random.intRangeAtMost(u8, 1, 6);
+```
+
+`DefaultPrng` быстрый и не криптостойкий. Для паролей, токенов и ключей бери `std.Io.randomSecure(init.io, &buffer)`.
+
+## Логирование
+
+```zig
+const log = std.log.scoped(.indexer);
+
+log.info("scanning {s}", .{path});
+log.warn("skipping {s}", .{path});
+log.err("failed: {s}", .{@errorName(err)});
+```
+
+Уровни: `debug`, `info`, `warn`, `err`. В debug-сборке по умолчанию видны `info` и выше. Уровень задается через `std_options.log_level`.
+
+## Что под капотом
+
+`std.StringHashMap` это обертка над `std.HashMap` с контекстом хеширования строк. Реализация в `lib/std/hash_map.zig` использует открытую адресацию и хранит метаданные в отдельных массивах. `getOrPut` возвращает `GetOrPutResult` с указателем на значение.
+
+`std.mem.sort` это интроспективная сортировка в `lib/std/mem.zig` и `lib/std/sort.zig`. Она выбирает алгоритм по размеру и глубине рекурсии. Компаратор передается функцией, поэтому виртуальные вызовы не нужны.
+
+`std.json` разделен на `Scanner`, `static.zig` и `Stringify.zig`. `parseFromSlice` использует сканер и строит значение нужного типа. `std.json.fmt` использует `Stringify` и пишет в `std.Io.Writer`. Если тип известен, промежуточный DOM не создается.
+
+`std.Io.Dir` в `lib/std/Io/Dir.zig` это новый файловый API. `Dir.cwd()` возвращает текущий каталог. `openFile`, `createFile`, `readFileAlloc` и `iterate` принимают `Io`. Старый `std.fs` остался для совместимости.
+
+`std.Io.Clock` в `lib/std/Io.zig` это enum часов: `real`, `monotonic`, `awake`, `boot`, `cpu_process`, `cpu_thread`. `Clock.Timestamp.now` и `Io.sleep` заменяют старые таймеры.
+
+## Где ломается
+
+**`std.time.Timer` удален.** Код из старых туториалов не соберется. Используй `std.Io.Clock.Timestamp`.
+
+**`std.fs` не основной API.** Для новых программ нужен `std.Io.Dir`. Старый `std.fs` может работать, но новый I/O-контекст живет в `std.Io`.
+
+**Ключи HashMap не копируются.** Если ключ указывает на временный буфер, после изменения буфера таблица сломается. Для строк делай `dupe` и освобождай ключи.
+
+**JSON-парсер владеет памятью.** `parseFromSlice` возвращает `Parsed(T)` с `deinit`. Без `deinit` будет утечка. Для временных данных удобна арена.
+
+**`std.json.fmt` это форматтер.** В `print` ты пишешь `{f}`, а не `{s}`.
+
+**Сортировка меняет порядок.** Если нужен исходный порядок, сделай копию. Компаратор должен быть строгим: для равных элементов возвращается `false`.
+
+**`readFileAlloc` требует лимит.** Не передавай `std.math.maxInt(usize)` без необходимости. Это разрешает прочитать файл любого размера и упасть по памяти.
+
+**`std.Io.randomSecure` и `DefaultPrng` решают разные задачи.** Для секретов нужен `randomSecure`, а не `DefaultPrng`.
+
+**Логирование не заменяет ошибки.** `log.err` не останавливает выполнение. Если ошибка критична, верни ее наверх или заверши процесс с кодом.
+
+<TaskForLesson lesson="16-standardnaya-biblioteka" />

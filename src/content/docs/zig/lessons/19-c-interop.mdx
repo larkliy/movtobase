@@ -1,0 +1,184 @@
+---
+title: "19. C interop"
+description: "Zig вызывает C без оберток и экспортирует функции с C ABI. Разбираем extern, translate-c и сборку C-кода в build.zig."
+course: zig
+lesson: 19
+part: 3
+duration: 5
+tags: ["c interop", "ffi"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Вызов C-функций
+
+Если сигнатура известна, функция объявляется через `extern`.
+
+```zig
+const std = @import("std");
+
+extern "c" fn puts(s: [*:0]const u8) c_int;
+extern "c" fn strlen(s: [*:0]const u8) usize;
+
+pub fn main() void {
+    _ = puts("hello from C");
+    std.debug.print("len={d}\n", .{strlen("12345")});
+}
+```
+
+`extern "c"` задает C ABI. `[*:0]const u8` это указатель на строку с нулевым терминатором. `c_int` соответствует `int` в C.
+
+Сборка с libc.
+
+```bash
+zig build-exe main.zig -lc
+```
+
+Без `-lc` линкер не найдет `puts` и `strlen`.
+
+## Экспорт функций
+
+`export` делает функцию видимой снаружи и применяет C ABI.
+
+```zig
+export fn zig_add(a: i32, b: i32) i32 {
+    return a + b;
+}
+```
+
+Имя задает `@export` явно.
+
+```zig
+comptime {
+    @export(&zig_add, .{ .name = "add" });
+}
+```
+
+Сборка динамической библиотеки.
+
+```bash
+zig build-lib math.zig -dynamic
+```
+
+На Windows получится `.dll`, на Linux `.so`, на macOS `.dylib`. Внутри будет функция `add`.
+
+## Модуль из заголовка
+
+`demo.h`:
+
+```c
+#ifndef DEMO_H
+#define DEMO_H
+int add(int a, int b);
+#endif
+```
+
+`demo.c`:
+
+```c
+#include "demo.h"
+int add(int a, int b) { return a + b; }
+```
+
+`build.zig`:
+
+```zig
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const translate = b.addTranslateC(.{
+        .root_source_file = b.path("src/demo.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const c_module = translate.createModule();
+
+    const exe = b.addExecutable(.{
+        .name = "cproj",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "c", .module = c_module },
+            },
+        }),
+    });
+    exe.root_module.addCSourceFile(.{ .file = b.path("src/demo.c") });
+    exe.root_module.link_libc = true;
+    b.installArtifact(exe);
+}
+```
+
+`src/main.zig`:
+
+```zig
+const std = @import("std");
+const c = @import("c");
+
+pub fn main() void {
+    std.debug.print("c add = {d}\n", .{c.add(2, 3)});
+}
+```
+
+`addTranslateC` генерирует Zig-файл из заголовка и создает модуль. В `main.zig` он импортируется по имени `c`. C-исходник добавляется через `addCSourceFile`, libc подключается через `link_libc`.
+
+Если заголовок лежит в отдельном каталоге, добавь путь.
+
+```zig
+translate.addIncludePath(b.path("include"));
+```
+
+Файл ты генерируешь вручную.
+
+```bash
+zig translate-c include/demo.h > src/demo_c.zig
+```
+
+Затем файл импортируется как обычный Zig-модуль. Target и флаги C должны совпадать с теми, с которыми собран C-код, иначе ABI разъедется.
+
+## Что под капотом
+
+`Step.TranslateC` лежит в `lib/std/Build/Step/TranslateC.zig`.
+
+```zig
+pub const Options = struct {
+    root_source_file: std.Build.LazyPath,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.Optimize,
+    link_libc: bool = true,
+};
+```
+
+Шаг вызывает `zig translate-c` и создает модуль с `root_source_file = output`. `link_libc` по умолчанию `true`, потому что заголовки часто тянут системные типы.
+
+`std.Build.Module` в `lib/std/Build/Module.zig` хранит `link_libc`, `link_libcpp`, `include_dirs`, `c_macros` и `system_libs`. Эти поля управляют C-совместимостью.
+
+ABI описан в `lib/std/builtin.zig`: `CallingConvention`, `CallingConvention.C`, `CallingConvention.winapi`. `extern struct` и `extern union` используют C layout, а `export` и `extern` задают C ABI.
+
+## Где ломается
+
+**`@cImport` удален.** В 0.17 это ошибка `invalid builtin function: '@cImport'`. Вместо него бери `zig translate-c` или `addTranslateC`.
+
+**Заголовок и бинарник должны совпадать по target.** Модуль, сгенерированный под `x86_64-windows`, не подходит для `aarch64-linux`. Target передается в `addTranslateC`.
+
+**Флаги C должны совпадать.** `#define`, `-fshort-enums` и другие флаги влияют на layout. Если C-код собран с другими флагами, структуры разъедутся.
+
+**Строки C требуют sentinel.** `[*:0]const u8` не то же самое, что `[]const u8`. Для среза нужен `dupeZ` или явный терминатор.
+
+**`link_libc` нужен не всегда, но часто.** Для `puts`, `malloc` и `printf` без libc не собрать. `addTranslateC` включает libc по умолчанию, для ручного `extern` нужен `-lc` или `link_libc`.
+
+**Владение памятью не меняется.** C-функция может вернуть указатель, который ты освобождаешь через `free`, или указатель на статическую память. Zig не знает разницы, читай документацию функции.
+
+**Windows DLL и ABI.** Для DLL передай `-dynamic`. На Windows имена и calling convention могут отличаться. `windows-gnu` и `windows-msvc` это разные ABI.
+
+**`extern struct` обязателен для FFI.** Обычный `struct` компилятор может переставлять поля. Для C-структур нужен `extern struct` или `packed struct` с явным layout.
+
+**Ошибки C не превращаются в Zig-ошибки.** `errno`, коды возврата и `NULL` остаются ответственностью вызывающего. Оберни C-API в Zig-функцию, которая проверяет коды и возвращает error union.
+
+**`export` и `pub` различаются.** `pub` открывает функцию для Zig-модулей, `export` для внешнего мира через C ABI. Для библиотеки обычно нужны оба.
+
+<TaskForLesson lesson="19-c-interop" />

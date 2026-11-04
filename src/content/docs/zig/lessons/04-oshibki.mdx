@@ -1,0 +1,163 @@
+---
+title: "4. Ошибки и их обработка"
+description: "Функция возвращает error union, и компилятор не дает отбросить ошибку. Разбираем error sets, try, catch, errdefer и представление ошибок."
+course: zig
+lesson: 4
+part: 1
+duration: 5
+tags: ["errors", "try/catch"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Ошибка как значение
+
+В C функция сообщает об ошибке через `-1` или `errno`. В Go каждый вызов сопровождается `if err != nil`. В языках с исключениями ошибка может вылететь из любой строки, и сигнатура функции об этом не говорит.
+
+Zig возвращает ошибку как значение. Если функция может не справиться, это записано в ее типе.
+
+```zig
+const std = @import("std");
+
+const MyError = error{
+    NotFound,
+    TooBig,
+    Invalid,
+};
+
+fn mayFail(x: u8) MyError!u8 {
+    if (x == 0) return error.NotFound;
+    if (x > 100) return error.TooBig;
+    return x * 2;
+}
+```
+
+`MyError!u8` это error union. Значение такого типа содержит либо `u8`, либо одну из ошибок `MyError`. Ошибка возвращается через `return error.NotFound`.
+
+Компилятор не разрешает отбросить error union.
+
+```
+error: error union is discarded
+note: consider using 'try', 'catch', or 'if'
+```
+
+Вызывающий обязан обработать результат.
+
+## try, catch и switch
+
+```zig
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    const ok = try mayFail(10);
+    try out.interface.print("ok={d}\n", .{ok});
+
+    const def = mayFail(0) catch 0;
+    try out.interface.print("default={d}\n", .{def});
+
+    const named = mayFail(0) catch |err| blk: {
+        try out.interface.print("caught: {s}\n", .{@errorName(err)});
+        break :blk 0;
+    };
+    _ = named;
+
+    if (mayFail(200)) |value| {
+        try out.interface.print("got {d}\n", .{value});
+    } else |err| {
+        try out.interface.print("else branch err={s}\n", .{@errorName(err)});
+    }
+
+    try out.flush();
+}
+```
+
+`try` распаковывает успешное значение и возвращает ошибку из текущей функции. Он работает только в функции, которая сама возвращает error union.
+
+`catch` задает значение по умолчанию. Тип этого значения должен совпадать с payload. `catch |err|` дает доступ к самой ошибке. Внутри блока ты можешь залогировать ее и вернуть значение через `break :blk`.
+
+Конструкция `if (expr) |value| ... else |err| ...` разделяет успех и ошибку без отдельного `catch`.
+
+Ты можешь сравнивать ошибку и разбирать ее в `switch`.
+
+```zig
+const e: MyError = error.Invalid;
+switch (e) {
+    error.NotFound => try out.interface.print("is NotFound\n", .{}),
+    error.TooBig => try out.interface.print("is TooBig\n", .{}),
+    error.Invalid => try out.interface.print("is Invalid\n", .{}),
+}
+```
+
+`@errorName(err)` возвращает имя ошибки строкой. Компилятор хранит таблицу имен в бинарнике.
+
+## Как это устроено
+
+`@typeInfo` описывает error union двумя типами.
+
+```zig
+pub const ErrorUnion = struct {
+    error_set: type,
+    payload: type,
+};
+
+pub const ErrorSet = struct {
+    error_names: ?[]const [:0]const u8,
+};
+```
+
+Error union хранит тип ошибки и тип payload. Error set хранит список имен. Для `anyerror` поле `error_names` равно `null`, потому что перечислить все ошибки невозможно.
+
+В runtime ошибка кодируется целым числом. Компилятор присваивает каждому имени индекс и передает его вместе с payload. `@errorName` берет индекс и ищет строку в таблице.
+
+Ты объединяешь наборы ошибок оператором `||`.
+
+```zig
+pub const KdfError = errors.Error || std.mem.Allocator.Error || std.Thread.SpawnError || std.Io.Cancelable;
+```
+
+`MyError || error{OtherThing}` дает набор `error{NotFound, TooBig, Invalid, OtherThing}`.
+
+В debug-сборке Zig собирает цепочку адресов от места `return error.X` до обработчика. `@errorReturnTrace()` возвращает `?*std.builtin.StackTrace`.
+
+```zig
+pub const StackTrace = struct {
+    index: usize,
+    instruction_addresses: []usize,
+};
+```
+
+Это не раскрутка стека исключений. Компилятор записывает адреса в массив, и трассировка отключается в release-режимах.
+
+## Где ломается
+
+**`!T` не равен `anyerror!T`.** Запись `!u8` означает inferred error set. Компилятор выводит набор ошибок из тела функции. `anyerror!u8` означает любую ошибку. Разница видна в имени типа.
+
+```zig
+@typeName(error{A, B}!u8)  // "error{A,B}!u8"
+@typeName(anyerror!u8)     // "anyerror!u8"
+```
+
+Для публичного API указывай конкретный набор. Тогда вызывающий видит, какие ошибки возможны.
+
+**Ошибку нельзя отбросить молча.** `_ = mayFail(5);` не собирается. Если ошибка невозможна по контракту, пишут `catch unreachable`. При нарушении контракта программа паникует в safe-режиме.
+
+**Значение в `catch` должно совпадать по типу.** `mayFail(0) catch 999` не соберется, если payload это `u8`, потому что `999` не помещается в `u8`. `catch` заменяет успешное значение, а не тип.
+
+**`errdefer` не заменяет `defer`.**
+
+```zig
+fn withErrdefer() !void {
+    defer std.debug.print("normal defer\n", .{});
+    errdefer std.debug.print("errdefer fired\n", .{});
+    return error.Blah;
+}
+```
+
+`defer` выполняется при любом выходе. `errdefer` выполняется только при выходе с ошибкой. В примере сработают оба, потому что функция возвращает ошибку. `errdefer` используют для отката: выделил память, оставил ее при успехе, освободил при ошибке.
+
+**Трассировка зависит от режима.** `@errorReturnTrace()` возвращает `null` в `ReleaseFast` и `ReleaseSmall`. Не используй ее для логики, только для диагностики.
+
+**Inferred error set делает функцию generic.** Если в сигнатуре стоит `!void` без явного набора, компилятор выводит набор для каждого места вызова. Такую функцию нельзя положить в указатель на функцию с фиксированным типом, потому что у каждого вызова может быть свой набор.
+
+<TaskForLesson lesson="04-oshibki" />

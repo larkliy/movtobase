@@ -1,0 +1,160 @@
+---
+title: "17. Новый I/O в Zig 0.17"
+description: "В 0.17 ввод-вывод переехал в std.Io. Разбираем writer и reader, файлы, каталоги, таймеры и поле interface."
+course: zig
+lesson: 17
+part: 3
+duration: 5
+tags: ["io", "std.Io"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## I/O как параметр
+
+До 0.15 в Zig был `std.io` с `getStdOut`, `bufferedWriter` и отдельными типами reader/writer. В 0.17 эти функции удалены. Ввод-вывод переехал в `std.Io`.
+
+Рантайм создает реализацию `std.Io`, обычно `std.Io.Threaded`, кладет ее в `std.process.Init` и передает в `main`. Дальше `init.io` передается в файлы, сокеты, таймеры и примитивы синхронизации. Глобальных стандартных потоков с неявными блокировками нет.
+
+`File.Reader` и `File.Writer` содержат поле `interface` типа `Io.Reader` или `Io.Writer`. Методы `print`, `readAll`, `takeDelimiter` объявлены на интерфейсе. Один и тот же код работает с файлом, сокетом, памятью и буфером.
+
+## Вывод
+
+```zig
+const std = @import("std");
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    try out.interface.print("Hello, {s}!\n", .{"world"});
+    try out.flush();
+}
+```
+
+`std.Io.File.stdout()` возвращает файл стандартного вывода. `writerStreaming(init.io, &buffer)` создает writer с буфером. Слово `streaming` означает, что позиция файла не сохраняется. Для обычных файлов с `seek` есть `writer`.
+
+`out.interface.print` форматирует и записывает данные. `out.flush()` сбрасывает буфер.
+
+Короткий вариант без ручного буфера.
+
+```zig
+try std.Io.File.stdout().writeStreamingAll(init.io, "Hello!\n");
+```
+
+## Ввод
+
+```zig
+var in_buffer: [4096]u8 = undefined;
+var in = std.Io.File.stdin().readerStreaming(init.io, &in_buffer);
+
+const line = try in.interface.takeDelimiterExclusive('\n');
+try out.interface.print("line={s}\n", .{line});
+```
+
+`readerStreaming` создает reader с буфером. `takeDelimiterExclusive` читает до разделителя, не включая его. `takeDelimiterInclusive` включает разделитель. `takeByte` читает один байт. `readSliceAll` заполняет буфер целиком, `readSliceShort` возвращает столько, сколько удалось прочитать. `allocRemaining` читает до конца и выделяет память через аллокатор.
+
+Для бинарных данных есть `takeInt`, `takeStruct`, `takeVarInt` и `takeEnum`. Endian задается явно.
+
+## Файлы и каталоги
+
+```zig
+const cwd = std.Io.Dir.cwd();
+
+try cwd.writeFile(init.io, .{
+    .sub_path = "demo.txt",
+    .data = "hello from Zig\n",
+});
+
+const data = try cwd.readFileAlloc(init.io, "demo.txt", init.gpa, .limited(1 << 20));
+defer init.gpa.free(data);
+
+var file = try cwd.openFile(init.io, "demo.txt", .{});
+defer file.close(init.io);
+
+var file_buf: [1024]u8 = undefined;
+var reader = file.readerStreaming(init.io, &file_buf);
+```
+
+`std.Io.Dir` заменил `std.fs.Dir` в новых программах. `Dir.cwd()` возвращает текущий каталог. `openFile`, `createFile`, `readFileAlloc`, `writeFile` и `iterate` принимают `io`.
+
+Итерация по каталогу.
+
+```zig
+var dir = try cwd.openDir(init.io, ".", .{ .iterate = true });
+defer dir.close(init.io);
+
+var it = dir.iterate();
+while (try it.next(init.io)) |entry| {
+    try out.interface.print("{s} {any}\n", .{ entry.name, entry.kind });
+}
+```
+
+Для `iterate` открой каталог с флагом `.iterate = true`. Без флага итерация вернет ошибку доступа.
+
+## Таймеры и сон
+
+```zig
+const start = std.Io.Clock.Timestamp.now(init.io, .awake);
+try std.Io.sleep(init.io, std.Io.Duration.fromMilliseconds(50), .awake);
+const elapsed = start.untilNow(init.io);
+try out.interface.print("elapsed={d}ns\n", .{elapsed.raw.nanoseconds});
+```
+
+`std.Io.Clock` это enum часов. `.awake` подходит для измерения интервалов, `.real` для календарного времени. `Clock.Timestamp` хранит момент, `untilNow` считает разницу, `Io.sleep` приостанавливает поток.
+
+## Почему interface
+
+`File.Writer` это структура с буфером и файлом. Она реализует `Io.Writer`, но не наследует его. Поле `interface` содержит vtable и состояние.
+
+```zig
+try out.interface.print(...); // правильно
+// try out.print(...);        // ошибка: у File.Writer нет print
+```
+
+С reader то же самое: `in.interface.takeDelimiterExclusive(...)`.
+
+## Что под капотом
+
+`std.Io` в `lib/std/Io.zig` это интерфейс с vtable.
+
+```zig
+pub const Io = struct {
+    userdata: ?*anyopaque,
+    vtable: *const VTable,
+};
+```
+
+VTable содержит операции для файлов, каталогов, сокетов, таймеров и синхронизации. Реализации: `std.Io.Threaded` в `lib/std/Io/Threaded.zig`, `std.Io.Uring` для io_uring, `std.Io.Kqueue` для BSD и macOS. Выбор зависит от target и настроек рантайма.
+
+`File` в `lib/std/Io/File.zig` хранит handle и флаги. `stdout()`, `stderr()` и `stdin()` возвращают `File` с нативным handle. На Windows handle берется из PEB, на POSIX это файловые дескрипторы 0, 1 и 2.
+
+`File.Writer` в `lib/std/Io/File/Writer.zig` содержит `file`, `io`, `interface: Io.Writer` и `err`. `writerStreaming` вызывает `File.Writer.init` в режиме streaming. `Io.Writer` в `lib/std/Io/Writer.zig` хранит буфер, позицию и vtable с `write`, `flush` и `rebase`.
+
+`Io.Reader` в `lib/std/Io/Reader.zig` устроен похоже: буфер, `seek`, `end` и vtable. `takeDelimiterExclusive` ищет разделитель в буфере, при необходимости дочитывает файл и возвращает срез во внутренний буфер. Поэтому срез живет до следующего чтения.
+
+`std.Io.Dir` в `lib/std/Io/Dir.zig` принимает `io` в каждом методе, потому что операции могут быть асинхронными и отменяемыми.
+
+## Где ломается
+
+**Забыл `flush`.** Буферизованный writer не отправляет данные сразу. Без `flush` вывод может остаться в буфере.
+
+**`std.io.getStdOut()` удален.** В 0.17 вызывай `std.Io.File.stdout()`.
+
+**Поле `interface` обязательно.** У `File.Writer` нет методов `print` и `writeAll`. Они объявлены на `Io.Writer`. Ошибка `no field or member function named 'print'` указывает на пропущенный `.interface`.
+
+**Буфер должен жить, пока жив writer.** `writerStreaming(init.io, &stack_buffer)` хранит указатель на буфер. Если writer вернуть из функции, а буфер был локальным, получится висячий указатель.
+
+**Reader возвращает срезы во внутренний буфер.** `takeDelimiterExclusive` возвращает `[]u8`, действительный до следующего чтения. Если данные должны жить дольше, скопируй их через `dupe` или используй `allocRemaining`.
+
+**Streaming и positional это разные режимы.** `readerStreaming` и `writerStreaming` не используют `seek`, поэтому подходят для сокетов и pipe. `reader` и `writer` работают с позицией файла.
+
+**Ошибка `error.Canceled`.** Новый I/O умеет отменять операции. Если используются `Io.concurrent` и `Future`, код должен обрабатывать `error.Canceled`.
+
+**`Dir.cwd()` не открывает каталог для итерации.** Для `iterate()` нужен `openDir(..., .{ .iterate = true })`.
+
+**`readFileAlloc` требует лимит.** Передавай `Io.Limit`. Иначе большой файл может исчерпать память.
+
+**Старый и новый API не смешиваются.** `std.fs.File` и `std.Io.File` это разные типы. В новом коде держись `std.Io`.
+
+<TaskForLesson lesson="17-novyy-io" />

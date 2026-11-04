@@ -1,0 +1,146 @@
+---
+title: "21. Производительность и build modes"
+description: "Debug, ReleaseSafe, ReleaseFast и ReleaseSmall меняют проверки и скорость. Разбираем замеры, @setRuntimeSafety, SIMD и профилирование."
+course: zig
+lesson: 21
+part: 3
+duration: 5
+tags: ["performance", "build modes"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Режимы сборки
+
+Zig по умолчанию собирает в Debug. В этом режиме работают проверки переполнения, границ, `undefined` и другие safety checks. Для разработки это правильно. Для замера скорости собери тот режим, который пойдет в продакшен.
+
+```bash
+zig build -Doptimize=Debug
+zig build -Doptimize=ReleaseSafe
+zig build -Doptimize=ReleaseFast
+zig build -Doptimize=ReleaseSmall
+```
+
+Для одиночного файла.
+
+```bash
+zig build-exe main.zig -O ReleaseFast
+```
+
+`Debug` включает максимум проверок и быстро компилируется. `ReleaseSafe` включает оптимизации и оставляет проверки. `ReleaseFast` убирает проверки ради скорости. `ReleaseSmall` убирает проверки ради размера.
+
+`b.standardOptimizeOption(.{})` в `build.zig` позволяет выбрать режим через `-Doptimize`.
+
+## Замер времени
+
+```zig
+const start = std.Io.Clock.Timestamp.now(init.io, .awake);
+// код
+const elapsed = start.untilNow(init.io);
+try out.interface.print("elapsed={d}ns\n", .{elapsed.raw.nanoseconds});
+```
+
+Одного запуска недостаточно. Нужен прогрев, несколько итераций и медиана. `std.mem.doNotOptimizeAway(value)` не дает компилятору выбросить результат.
+
+```zig
+var total: u64 = 0;
+for (data) |x| total +%= x;
+std.mem.doNotOptimizeAway(total);
+```
+
+Без этой функции цикл может исчезнуть, если результат нигде не нужен.
+
+## Точечная безопасность
+
+```zig
+fn fastSum(xs: []const u32) u32 {
+    @setRuntimeSafety(false);
+    var sum: u32 = 0;
+    for (xs) |x| sum +%= x;
+    return sum;
+}
+```
+
+`@setRuntimeSafety(false)` отключает проверки в функции. Применяй его только там, где доказано отсутствие переполнения и выхода за границы. В `ReleaseFast` проверки уже отключены. В `ReleaseSafe` этот builtin полезен для горячего участка, который проверен отдельно.
+
+## Подсказки ветвления
+
+```zig
+if (unlikely_condition) {
+    @branchHint(.unlikely);
+    // ...
+}
+```
+
+`@branchHint` сообщает компилятору, какая ветка вероятнее. Это не профилировщик. Неправильная подсказка может ухудшить код, поэтому сначала нужен профиль.
+
+## SIMD
+
+```zig
+fn dot(a: []const f32, b: []const f32) f32 {
+    const V = @Vector(4, f32);
+    var acc: V = @splat(0);
+    var i: usize = 0;
+
+    while (i + 4 <= a.len) : (i += 4) {
+        const va: V = a[i..][0..4].*;
+        const vb: V = b[i..][0..4].*;
+        acc += va * vb;
+    }
+
+    var total: f32 = @reduce(.Add, acc);
+    while (i < a.len) : (i += 1) total += a[i] * b[i];
+    return total;
+}
+```
+
+`@Vector(4, f32)` это вектор из четырех `f32`. Операции над векторами компилируются в SIMD-инструкции, если target их поддерживает. `@reduce(.Add, acc)` складывает элементы вектора. Хвост обрабатывается скалярно, потому что длина может не делиться на 4.
+
+## Профилирование
+
+На Linux используй `perf record` и `perf report`. На Windows подойдут VTune или ETW, на macOS Instruments. Для анализа ассемблера есть `-femit-asm`. `--verbose-link` и `--verbose-cc` показывают, что делает линкер и C-компилятор.
+
+Встроенного профайлера в Zig нет. Системные инструменты работают с бинарником Zig так же, как с бинарником C.
+
+## Что под капотом
+
+`std.builtin.OptimizeMode` в `lib/std/builtin.zig`.
+
+```zig
+pub const OptimizeMode = enum {
+    Debug,
+    ReleaseSafe,
+    ReleaseFast,
+    ReleaseSmall,
+};
+```
+
+`standardOptimizeOption` читает `-Doptimize` и возвращает этот enum. `Step.Compile` передает его компилятору.
+
+`@setRuntimeSafety` и `@branchHint` опускаются в AIR и LLVM IR. `@Vector` отображается в векторный тип LLVM. На x86 это SSE или AVX, на ARM NEON, если включены соответствующие CPU features.
+
+`std.mem.doNotOptimizeAway` использует inline assembly или volatile-чтение, чтобы результат не был удален оптимизатором. Это стандартный прием в бенчмарках.
+
+## Где ломается
+
+**Debug по умолчанию.** Замер без `-Doptimize=ReleaseFast` показывает стоимость проверок, а не алгоритма.
+
+**ReleaseFast отключает проверки.** Переполнение, выход за границы и `undefined` становятся UB. Если код не доказан, используй `ReleaseSafe`.
+
+**Один замер ничего не значит.** Нужны прогрев, несколько итераций и медиана. Учитывай шум ОС и турбобуст.
+
+**Компилятор может выбросить код.** Если результат нигде не нужен, цикл удаляют. `doNotOptimizeAway` и `volatile` помогают, но злоупотреблять ими не стоит.
+
+**`@setRuntimeSafety(false)` это обещание.** Если ошибешься, в `ReleaseSafe` будет UB, а не паника. Применяй после доказательства.
+
+**SIMD не всегда быстрее.** На маленьких массивах и невыровненных данных скалярный код может выиграть. Измеряй.
+
+**`@branchHint` не заменяет профилировщик.** Неправильная подсказка ухудшает предсказание ветки.
+
+**Аллокации в горячем пути.** Быстрый алгоритм с `malloc` на каждой итерации остается медленным. Арены, буферы и переиспользование памяти важнее микрооптимизаций.
+
+**False sharing.** Два потока пишут в разные поля одной cache line и мешают друг другу. Данные разводят по разным линиям или добавляют padding.
+
+**Не оптимизируй до измерения.** Сначала корректность и тесты, потом профиль, потом оптимизация.
+
+<TaskForLesson lesson="21-proizvoditelnost-i-build-modes" />

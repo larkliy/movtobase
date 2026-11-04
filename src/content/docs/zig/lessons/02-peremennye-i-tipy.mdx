@@ -1,0 +1,150 @@
+---
+title: "2. Переменные и их типы"
+description: "Zig требует явного сужения типов, ловит переполнение в Debug и хранит comptime_int отдельно от машинных целых. Разбираем, как устроены типы."
+course: zig
+lesson: 2
+part: 1
+duration: 5
+tags: ["types", "integers"]
+---
+
+import TaskForLesson from '../../../../components/TaskForLesson.astro';
+
+## Объявление переменной
+
+```zig
+const std = @import("std");
+
+pub fn main(init: std.process.Init) !void {
+    var buffer: [4096]u8 = undefined;
+    var out = std.Io.File.stdout().writerStreaming(init.io, &buffer);
+
+    var age: u8 = 30;
+    const name: []const u8 = "Heller";
+
+    age += 1;
+    // name = "Other"; // ошибка: cannot assign to constant
+
+    const answer = 42; // comptime_int
+    var score: u32 = 0;
+    score += 1;
+
+    try out.interface.print("{s} is {d}, answer {d}, score {d}\n", .{ name, age, answer, score });
+    try out.flush();
+}
+```
+
+`var` создает изменяемую переменную, `const` неизменяемую. Zig проверяет, что `var` действительно меняется. Если переменная не мутирует, компилятор выдает `local variable is never mutated` и предлагает заменить `var` на `const`.
+
+Аннотация типа стоит после имени: `age: u8`. Если аннотации нет, Zig выводит тип из значения. Для `const answer = 42` это `comptime_int`, а не `u8`. Zig выводит тип и для `var` без аннотации, но ты можешь изменить такую переменную, только если тип не comptime-only. Запись `var score = 0; score += 1;` не соберется с `variable of type 'comptime_int' must be const or comptime`.
+
+## Целые числа
+
+Zig называет целые по знаковости и количеству бит. Отдельного `int` нет.
+
+```zig
+const a: u8 = 255;    // 0..255
+const b: i8 = -128;   // -128..127
+const c: u32 = 4_000_000_000;
+const d: i64 = -9_223_372_036_854_775_808;
+const e: usize = 100; // размер указателя, 8 байт на x86_64
+const f: f32 = 3.14;
+const g: f64 = 2.71828;
+const h: bool = true;
+```
+
+Доступны `u1`..`u65535`, `i1`..`i65535`, `usize`, `isize`, `f16`, `f32`, `f64`, `f80`, `f128` и `bool`. Последний занимает один байт и принимает только `true` или `false`.
+
+Ты можешь объявить целое с любой битностью.
+
+```zig
+const small: u3 = 5;   // 0..7
+const tiny: i2 = -1;   // -2..1
+```
+
+Для локальной переменной компилятор держит значение в регистре или в памяти подходящего размера. В `packed struct` поля `u3` и `u4` упаковываются в общие байты. Это полезно для флагов, протоколов и структур, которые должны занимать минимум места.
+
+## Как тип хранится в компиляторе
+
+`@typeInfo(T)` возвращает значение `std.lang.Type`. Это tagged union, у которого для целых есть вариант `int`.
+
+```zig
+pub const Type = union(enum) {
+    type,
+    void,
+    bool,
+    noreturn,
+    int: Int,
+    float: Float,
+    pointer: Pointer,
+    array: Array,
+    @"struct": Struct,
+    comptime_float,
+    comptime_int,
+    undefined,
+    null,
+    // optional, error_union, enum, union, fn и остальные варианты
+};
+
+pub const Int = struct {
+    signedness: Signedness,
+    bits: u16,
+};
+
+pub const Float = struct {
+    bits: u16,
+};
+```
+
+`u8` в этой модели выглядит как `.{ .int = .{ .signedness = .unsigned, .bits = 8 } }`. Имя типа здесь не строка, а набор полей.
+
+`std.math.maxInt` считает границу из этих полей.
+
+```zig
+pub fn maxInt(comptime T: type) comptime_int {
+    const info = @typeInfo(T).int;
+    return (1 << (info.bits - @intFromBool(info.signedness == .signed))) - 1;
+}
+```
+
+Для `u8` получается `(1 << 8) - 1 = 255`, для `i8` получается `(1 << 7) - 1 = 127`. Параметр `comptime` позволяет вычислить результат при компиляции.
+
+Литерал `42` имеет тип `comptime_int`. Это целое произвольной точности, которое существует только на этапе компиляции. Литерал `3.14` имеет тип `comptime_float`. Как только значение попадает в runtime, оно получает машинный тип.
+
+`std.math.IntFittingRange` использует это свойство, чтобы подобрать минимальный тип под диапазон.
+
+```zig
+pub fn IntFittingRange(comptime from: comptime_int, comptime to: comptime_int) type {
+    // вычисление signedness и bits
+    return @Int(signedness, bits);
+}
+```
+
+Вызов `IntFittingRange(0, 4095)` возвращает `u12`, вызов `IntFittingRange(-1, 1)` возвращает `i2`.
+
+## Где ломается
+
+**Переполнение ловится в runtime.** В Debug и `ReleaseSafe` выражение `255 + 1` для `u8` вызывает панику `integer overflow` со стек-трейсом. В `ReleaseFast` и `ReleaseSmall` проверка отключена, и переполнение становится undefined behavior. Для явного заворачивания используй `+%`, `-%` или `*%`.
+
+**Сужение не происходит само.** Присваивание `u32` в `u8` не соберется.
+
+```
+error: expected type 'u8', found 'u32'
+note: unsigned 8-bit int cannot represent all possible unsigned 32-bit values
+```
+
+Сужение пишется явно. `@intCast(x)` проверяет диапазон и паникует в safe-режиме, если значение не влезает. `@truncate(x)` отбрасывает старшие биты без проверки. Расширение с `u8` до `u16` происходит само.
+
+**`comptime_int` не равен `u8`.** `const x = 42` имеет тип `comptime_int`. `@intCast` из константы `1000` в `u8` падает при компиляции с `error: type 'u8' cannot represent integer value '1000'`, потому что значение известно заранее.
+
+**Чтение `undefined` это UB.** `var u: u8 = undefined` оставляет память неинициализированной. Debug-сборка заливает ее байтом `0xaa`, поэтому в отладчике ты увидишь `170` или `aaaaaaaa`. В release там будет мусор, и полагаться на конкретное значение нельзя.
+
+**Shadowing запрещен.** Объявление `const n` внутри блока, где уже есть `n`, не соберется.
+
+```
+error: local constant 'n' shadows local constant from outer scope
+```
+
+Zig не разрешает затенять имена во вложенных областях. Это упрощает чтение чужого кода.
+
+<TaskForLesson lesson="02-peremennye-i-tipy" />

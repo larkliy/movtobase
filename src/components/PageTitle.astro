@@ -1,0 +1,86 @@
+---
+import { csharpArticles, zigLessons, zigTotal } from '../data/courses';
+
+const { entry } = Astro.locals.starlightRoute;
+const data = entry.data;
+const isSplash = data.template === 'splash';
+const base = import.meta.env.BASE_URL;
+const href = (path: string) => base.replace(/\/$/, '') + path;
+
+const isZig = data.course === 'zig';
+const isCsharp = data.course === 'csharp';
+const lesson = isZig && data.lesson ? zigLessons.find((item) => item.number === data.lesson) : undefined;
+const article = isCsharp && data.article ? csharpArticles.find((item) => item.number === data.article) : undefined;
+const title = data.title;
+---
+
+{!isSplash && (
+  <div class="mb-page-title" data-lesson-current={lesson ? '' : undefined} data-lesson-slug={lesson?.slug} data-lesson-title={lesson ? `${lesson.number}. ${lesson.title}` : undefined} data-lesson-number={lesson?.number}>
+    <div class="mb-reading-progress" aria-hidden="true"><span data-reading-progress></span></div>
+
+    <nav class="mb-breadcrumbs" aria-label="Хлебные крошки">
+      <a href={href('/')}>Главная</a>
+      <span>/</span>
+      {isCsharp ? (
+        <>
+          <a href={href('/csharp/')}>C# Low Level</a>
+          <span>/</span>
+          <span>Разбор {String(data.article ?? '').padStart(2, '0')}</span>
+        </>
+      ) : isZig && lesson ? (
+        <>
+          <a href={href('/zig/')}>Zig</a>
+          <span>/</span>
+          <span>{lesson.partTitle}</span>
+          <span>/</span>
+          <span>Урок {lesson.number}</span>
+        </>
+      ) : isZig ? (
+        <>
+          <a href={href('/zig/')}>Zig</a>
+          <span>/</span>
+          <span>{title}</span>
+        </>
+      ) : (
+        <>
+          <span>movtobase</span>
+        </>
+      )}
+    </nav>
+
+    <h1 id="_top">{title}</h1>
+
+    <div class="mb-page-meta">
+      {lesson ? (
+        <>
+          <span>{lesson.number} из {zigTotal}</span>
+          <span class="mb-dot"></span>
+          <span>{lesson.duration} мин</span>
+          <span class="mb-dot"></span>
+          <span>Zig 0.17.0</span>
+          <button class="mb-complete" type="button" data-progress-toggle data-lesson-slug={lesson.slug} aria-pressed="false">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            <span data-toggle-label>Отметить пройденным</span>
+          </button>
+        </>
+      ) : article ? (
+        <>
+          <span>{article.duration} мин</span>
+          <span class="mb-dot"></span>
+          <span>.NET 9</span>
+          <span class="mb-dot"></span>
+          <span>CoreCLR</span>
+          <span class="mb-series">Разбор {article.number} из {csharpArticles.length}</span>
+        </>
+      ) : (
+        <>
+          <span>Zig 0.17.0</span>
+          <span class="mb-dot"></span>
+          <span>{data.duration ?? 5} мин</span>
+        </>
+      )}
+    </div>
+  </div>
+)}
