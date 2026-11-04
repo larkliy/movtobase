@@ -949,7 +949,7 @@ html[data-theme='light'] .sl-markdown-content code:not(pre code) {
 
 .mb-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.94fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: clamp(32px, 5vw, 80px);
   align-items: center;
   padding: 58px 0 46px;
@@ -958,10 +958,14 @@ html[data-theme='light'] .sl-markdown-content code:not(pre code) {
 .mb-hero-copy h1 {
   margin: 18px 0 20px;
   color: var(--mb-text);
-  font-size: clamp(2.6rem, 5.1vw, 4.35rem);
+  font-size: clamp(2.6rem, 5vw, 4.05rem);
   font-weight: 700;
   letter-spacing: -0.055em;
   line-height: 1.02;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+  text-wrap: balance;
 }
 
 .mb-hero-copy h1 span {
@@ -2435,7 +2439,7 @@ html[data-theme='light'] .mb-article-body code:not(pre code) {
   }
 
   .mb-hero-copy h1 {
-    font-size: clamp(2.3rem, 12vw, 3.1rem);
+    font-size: clamp(2rem, 10vw, 2.6rem);
   }
 
   .mb-continue {
