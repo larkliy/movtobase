@@ -3,20 +3,19 @@ import starlight from '@astrojs/starlight';
 import { csharpArticles, siteBase, zigLessons } from './src/data/courses.ts';
 
 const base = siteBase;
-const link = (path) => `${base}${path}`;
 
 const zigItems = [
-  { label: 'Обзор курса', link: link('/zig/') },
-  { label: 'Установка и настройка', link: link('/zig/setup/') },
-  { label: 'Шпаргалка', link: link('/zig/cheatsheet/') },
-  { label: 'Что изменилось в 0.17.0', link: link('/zig/migration-017/') },
+  { label: 'Обзор курса', link: '/zig/' },
+  { label: 'Установка и настройка', link: '/zig/setup/' },
+  { label: 'Шпаргалка', link: '/zig/cheatsheet/' },
+  { label: 'Что изменилось в 0.17.0', link: '/zig/migration-017/' },
   {
     label: 'Часть I. База',
     items: zigLessons
       .filter((lesson) => lesson.part === 1)
       .map((lesson) => ({
         label: `${lesson.number}. ${lesson.title}`,
-        link: link(`/zig/lessons/${lesson.slug}/`),
+        link: `/zig/lessons/${lesson.slug}/`,
       })),
   },
   {
@@ -26,7 +25,7 @@ const zigItems = [
       .filter((lesson) => lesson.part === 2)
       .map((lesson) => ({
         label: `${lesson.number}. ${lesson.title}`,
-        link: link(`/zig/lessons/${lesson.slug}/`),
+        link: `/zig/lessons/${lesson.slug}/`,
       })),
   },
   {
@@ -36,16 +35,16 @@ const zigItems = [
       .filter((lesson) => lesson.part === 3)
       .map((lesson) => ({
         label: `${lesson.number}. ${lesson.title}`,
-        link: link(`/zig/lessons/${lesson.slug}/`),
+        link: `/zig/lessons/${lesson.slug}/`,
       })),
   },
 ];
 
 const csharpItems = [
-  { label: 'Обзор серии', link: link('/csharp/') },
+  { label: 'Обзор серии', link: '/csharp/' },
   ...csharpArticles.map((article) => ({
     label: `${String(article.number).padStart(2, '0')}. ${article.title}`,
-    link: link(`/csharp/${article.slug}/`),
+    link: `/csharp/${article.slug}/`,
   })),
 ];
 
@@ -76,7 +75,7 @@ export default defineConfig({
       sidebar: [
         { label: 'Zig 0.17.0', items: zigItems },
         { label: 'C# Low Level + Zero Allocations', items: csharpItems },
-        { label: 'Практика', link: link('/practice/') },
+        { label: 'Практика', link: '/practice/' },
       ],
       expressiveCode: {
         themes: ['github-dark-default', 'github-light-default'],
