@@ -82,6 +82,19 @@ export default defineConfig({
       },
       head: [
         { tag: 'meta', attrs: { name: 'theme-color', content: '#0a0a0f' } },
+        {
+          tag: 'script',
+          attrs: {
+            async: true,
+            src: 'https://www.googletagmanager.com/gtm.js?id=GTM-NF45KN38',
+          },
+        },
+        {
+          tag: 'script',
+          content: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());`,
+        },
       ],
     }),
   ],
