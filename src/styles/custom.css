@@ -265,10 +265,38 @@ site-search button[data-open-modal] kbd {
   font-size: 10px;
 }
 
-starlight-theme-select select {
-  border-color: var(--mb-border);
-  background: transparent;
+.mb-theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  border: 1px solid var(--mb-border);
+  border-radius: 9px;
+  background: var(--mb-surface);
   color: var(--mb-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.mb-theme-toggle:hover {
+  border-color: var(--mb-border-strong);
+  background: var(--mb-surface-2);
+  color: var(--mb-text);
+}
+
+.mb-theme-toggle .mb-theme-icon {
+  display: none;
+  width: 17px;
+  height: 17px;
+}
+
+.mb-theme-toggle[data-theme='auto'] .mb-theme-icon--auto,
+.mb-theme-toggle[data-theme='light'] .mb-theme-icon--light,
+.mb-theme-toggle[data-theme='dark'] .mb-theme-icon--dark {
+  display: block;
 }
 
 .mb-mobile {

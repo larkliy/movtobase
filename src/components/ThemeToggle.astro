@@ -1,0 +1,90 @@
+<button
+  type="button"
+  class="mb-theme-toggle"
+  data-theme-toggle
+  data-theme="auto"
+  aria-label="Тема: авто"
+  title="Тема: авто"
+>
+  <svg class="mb-theme-icon mb-theme-icon--auto" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M2 20h20" />
+  </svg>
+  <svg class="mb-theme-icon mb-theme-icon--light" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+  </svg>
+  <svg class="mb-theme-icon mb-theme-icon--dark" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+  </svg>
+</button>
+
+<script is:inline>
+  (() => {
+    const button = document.querySelector('[data-theme-toggle]');
+    if (!button) return;
+    try {
+      const stored = localStorage.getItem('starlight-theme');
+      button.dataset.theme = stored === 'light' || stored === 'dark' ? stored : 'auto';
+    } catch {}
+  })();
+</script>
+
+<script>
+  // @ts-nocheck
+  const KEY = 'starlight-theme';
+  const root = document.documentElement;
+  const media = window.matchMedia('(prefers-color-scheme: light)');
+  const labels = {
+    auto: 'Тема: авто',
+    light: 'Тема: светлая',
+    dark: 'Тема: тёмная',
+  };
+
+  const parse = (value) => (value === 'light' || value === 'dark' ? value : 'auto');
+  const system = () => (media.matches ? 'light' : 'dark');
+
+  const read = () => {
+    try {
+      return parse(localStorage.getItem(KEY));
+    } catch {
+      return 'auto';
+    }
+  };
+
+  const apply = (theme) => {
+    root.dataset.theme = theme === 'auto' ? system() : theme;
+    try {
+      localStorage.setItem(KEY, theme === 'auto' ? '' : theme);
+    } catch {}
+  };
+
+  const render = (theme) => {
+    document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+      button.dataset.theme = theme;
+      button.setAttribute('aria-label', labels[theme]);
+      button.setAttribute('title', labels[theme]);
+    });
+  };
+
+  document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const current = read();
+      const next = current === 'auto' ? 'light' : current === 'light' ? 'dark' : 'auto';
+      apply(next);
+      render(next);
+    });
+  });
+
+  media.addEventListener('change', () => {
+    if (read() === 'auto') apply('auto');
+  });
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== KEY) return;
+    apply(read());
+    render(read());
+  });
+
+  render(read());
+</script>
