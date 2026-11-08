@@ -476,12 +476,12 @@ html[data-theme='light'] #starlight__sidebar ul ul a:hover {
 }
 
 .mb-breadcrumbs a {
-  color: var(--mb-dim);
+  color: var(--mb-violet-light);
   text-decoration: none;
 }
 
 .mb-breadcrumbs a:hover {
-  color: var(--mb-violet-light);
+  color: var(--mb-text);
 }
 
 .mb-page-title h1 {
@@ -2105,10 +2105,12 @@ html[data-theme='light'] .mb-article-body code:not(pre code) {
 
 .mb-segmented {
   display: flex;
+  align-items: center;
   gap: 4px;
 }
 
 .mb-segmented button {
+  margin: 0;
   padding: 7px 11px;
   border: 1px solid transparent;
   border-radius: 7px;
@@ -2116,6 +2118,7 @@ html[data-theme='light'] .mb-article-body code:not(pre code) {
   color: var(--mb-muted);
   font: inherit;
   font-size: 12px;
+  line-height: 1.4;
   cursor: pointer;
 }
 
@@ -2127,22 +2130,56 @@ html[data-theme='light'] .mb-article-body code:not(pre code) {
 
 .mb-filter-right {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.mb-filter-bar > *,
+.mb-segmented > *,
+.mb-filter-right > * {
+  margin-top: 0;
 }
 
 .mb-filter-right select,
 .mb-search {
   height: 34px;
+  margin: 0;
   border: 1px solid var(--mb-border);
   border-radius: 8px;
   background: var(--mb-surface);
   color: var(--mb-muted);
   font: inherit;
   font-size: 12px;
+  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
 }
 
 .mb-filter-right select {
-  padding: 0 28px 0 10px;
+  padding: 0 32px 0 12px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239494a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 12px;
+  cursor: pointer;
+}
+
+.mb-filter-right select:hover,
+.mb-filter-right select:focus {
+  border-color: var(--mb-border-strong);
+  background-color: var(--mb-surface-2);
+  color: var(--mb-text);
+  outline: none;
+}
+
+.mb-filter-right select option {
+  background: var(--mb-surface-2);
+  color: var(--mb-text);
+}
+
+.mb-search:focus-within {
+  border-color: var(--mb-border-strong);
+  background-color: var(--mb-surface-2);
 }
 
 .mb-search {
