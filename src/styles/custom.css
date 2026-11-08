@@ -2,7 +2,6 @@
 @import '@fontsource-variable/jetbrains-mono/index.css';
 
 /* ---------- tokens ---------- */
-
 :root {
   --sl-font: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --sl-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -575,7 +574,6 @@ html[data-theme='light'] #starlight__sidebar ul ul a:hover {
 }
 
 .sl-markdown-content a {
-  color: var(--mb-violet-light);
   text-underline-offset: 3px;
 }
 
@@ -820,6 +818,8 @@ html[data-theme='light'] .sl-markdown-content code:not(pre code) {
   box-shadow: 0 0 8px var(--mb-green);
 }
 
+
+
 .mb-btn {
   display: inline-flex;
   align-items: center;
@@ -827,10 +827,10 @@ html[data-theme='light'] .sl-markdown-content code:not(pre code) {
   gap: 8px;
   min-height: 42px;
   padding: 0 18px;
+  color: var(--mb-violet-light);
   border: 1px solid var(--mb-border);
   border-radius: 10px;
   background: transparent;
-  color: var(--mb-text);
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
