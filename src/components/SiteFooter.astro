@@ -1,18 +1,35 @@
 ---
 const base = import.meta.env.BASE_URL;
-const href = (path: string) => base.replace(/\/$/, '') + path;
+const href = (path: string) => base.replace(/\/$/, "") + path;
+import { Github, Telegram } from "simple-icons-astro";
+import { config } from "../data/config";
 ---
 
 <div class="mb-site-footer">
-  <div class="mb-site-footer-inner">
-    <a class="mb-brand mb-brand--footer" href={href('/')}>
-      <span class="mb-logo" aria-hidden="true">m</span>
-      <span class="mb-wordmark">movtobase</span>
-    </a>
-    <p>База знаний по системному программированию</p>
-    <nav aria-label="Ссылки в подвале">
-      <a href="https://github.com/larkliy" rel="noreferrer" target="_blank">GitHub</a>
-      <span>© 2026</span>
-    </nav>
-  </div>
+    <div class="mb-site-footer-inner">
+        <a class="mb-brand mb-brand--footer" href={href("/")}>
+            <span class="mb-logo" aria-hidden="true">
+                m
+            </span>
+            <span class="mb-wordmark">movtobase</span>
+        </a>
+        <p>База знаний по системному программированию</p>
+        <nav aria-label="Ссылки в подвале">
+            <a
+                href=`https://github.com/${config.github}`
+                rel="noreferrer"
+                target="_blank"
+            >
+                <Github size="16px" />
+            </a>
+            <a
+                href=`https://t.me/${config.telegram}`
+                rel="noreferrer"
+                target="_blank"
+            >
+                <Telegram size="16px" />
+            </a>
+            <span>© 2026</span>
+        </nav>
+    </div>
 </div>

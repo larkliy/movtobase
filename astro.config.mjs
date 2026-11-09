@@ -1,7 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import { csharpArticles, siteBase, zigLessons } from './src/data/courses.ts';
-
+import { config } from './src/data/config.ts'
 const base = siteBase;
 
 const zigItems = [
@@ -63,7 +63,7 @@ export default defineConfig({
       },
       favicon: '/favicon.svg',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/larkliy' },
+        { icon: 'github', label: 'GitHub', href: `https://github.com/${config.github}` },
       ],
       customCss: ['./src/styles/custom.css'],
       components: {
