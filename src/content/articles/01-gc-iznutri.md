@@ -224,7 +224,7 @@ byte[] buffer = GC.AllocateUninitializedArray<byte>(64 * 1024, pinned: true);
 
 Не пытайтесь гадать, как ведёт себя сборщик — снимайте метрики рантайма через `dotnet-counters` или EventPipe:
 
-```powershell
+```powershell title="Терминал"
 dotnet-counters monitor --counters System.Runtime --process-id <PID>
 ```
 
