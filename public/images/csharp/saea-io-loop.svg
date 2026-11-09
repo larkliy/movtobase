@@ -23,38 +23,44 @@
   <!-- Flow Steps -->
   <g transform="translate(40, 95)">
     <!-- Node 1: SAEA Pool -->
-    <rect x="0" y="0" width="245" height="155" rx="8" fill="url(#grad-saea)" stroke="#3b82f6" stroke-width="1.5"/>
-    <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#60a5fa">1. SAEA Pool / POH Buffer</text>
-    <text x="18" y="52" font-family="monospace" font-size="11" fill="#c9d1d9">SocketAsyncEventArgs</text>
-    <text x="18" y="74" font-family="sans-serif" font-size="11" fill="#8b949e">• Выделен при старте сервиса</text>
-    <text x="18" y="94" font-family="sans-serif" font-size="11" fill="#8b949e">• Буфер закреплен в POH</text>
-    <text x="18" y="114" font-family="sans-serif" font-size="11" fill="#8b949e">• Связан с Overlapped</text>
-    <text x="18" y="138" font-family="sans-serif" font-size="11.5" font-weight="600" fill="#34d399">0 байт в GC при приеме</text>
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="245" height="155" rx="8" fill="url(#grad-saea)" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#60a5fa">1. SAEA Pool / POH Buffer</text>
+      <text x="18" y="52" font-family="monospace" font-size="11" fill="#c9d1d9">SocketAsyncEventArgs</text>
+      <text x="18" y="74" font-family="sans-serif" font-size="11" fill="#8b949e">• Выделен при старте сервиса</text>
+      <text x="18" y="94" font-family="sans-serif" font-size="11" fill="#8b949e">• Буфер закреплен в POH</text>
+      <text x="18" y="114" font-family="sans-serif" font-size="11" fill="#8b949e">• Связан с Overlapped</text>
+      <text x="18" y="138" font-family="sans-serif" font-size="11.5" font-weight="600" fill="#34d399">0 байт в GC при приеме</text>
+    </g>
 
     <!-- Arrow 1 -> 2 -->
     <path d="M 252,78 L 280,78 M 272,73 L 280,78 L 272,83" stroke="#58a6ff" stroke-width="2" fill="none"/>
 
     <!-- Node 2: CoreCLR Socket -->
-    <rect x="288" y="0" width="245" height="155" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
-    <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#c9d1d9">2. Socket.ReceiveAsync</text>
-    <text x="18" y="52" font-family="sans-serif" font-size="11" fill="#8b949e">Передаем SAEA в CoreCLR:</text>
-    <rect x="18" y="65" width="208" height="42" rx="4" fill="#0d1117" stroke="#30363d"/>
-    <text x="28" y="83" font-family="monospace" font-size="10.5" fill="#f0f6fc">bool pending =</text>
-    <text x="28" y="98" font-family="monospace" font-size="10.5" fill="#f0f6fc">  s.ReceiveAsync(saea);</text>
-    <text x="18" y="125" font-family="sans-serif" font-size="10.5" fill="#8b949e">true: запрос передан в ядро ОС</text>
-    <text x="18" y="141" font-family="sans-serif" font-size="10.5" fill="#a5b4fc">false: завершен синхронно</text>
+    <g transform="translate(288, 0)">
+      <rect x="0" y="0" width="245" height="155" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+      <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#c9d1d9">2. Socket.ReceiveAsync</text>
+      <text x="18" y="52" font-family="sans-serif" font-size="11" fill="#8b949e">Передаем SAEA в CoreCLR:</text>
+      <rect x="18" y="65" width="208" height="42" rx="4" fill="#0d1117" stroke="#30363d"/>
+      <text x="28" y="83" font-family="monospace" font-size="10.5" fill="#f0f6fc">bool pending =</text>
+      <text x="28" y="98" font-family="monospace" font-size="10.5" fill="#f0f6fc">  s.ReceiveAsync(saea);</text>
+      <text x="18" y="125" font-family="sans-serif" font-size="10.5" fill="#8b949e">true: запрос передан в ядро ОС</text>
+      <text x="18" y="141" font-family="sans-serif" font-size="10.5" fill="#a5b4fc">false: завершен синхронно</text>
+    </g>
 
     <!-- Arrow 2 -> 3 -->
     <path d="M 540,78 L 568,78 M 560,73 L 568,78 L 560,83" stroke="#a78bfa" stroke-width="2" fill="none"/>
 
     <!-- Node 3: OS Kernel -->
-    <rect x="575" y="0" width="245" height="155" rx="8" fill="url(#grad-os)" stroke="#8b5cf6" stroke-width="1.5"/>
-    <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#a78bfa">3. OS Kernel (I/O)</text>
-    <text x="18" y="52" font-family="sans-serif" font-size="11" fill="#c9d1d9">Асинхронная вычитка пакета:</text>
-    <text x="18" y="74" font-family="sans-serif" font-size="11" fill="#8b949e">• Win: IOCP + WSARecv</text>
-    <text x="18" y="94" font-family="sans-serif" font-size="11" fill="#8b949e">• Linux: epoll (edge-triggered)</text>
-    <text x="18" y="114" font-family="sans-serif" font-size="11" fill="#8b949e">• Direct DMA в память POH</text>
-    <text x="18" y="138" font-family="sans-serif" font-size="11.5" font-weight="600" fill="#c4b5fd">Без промежуточных буферов</text>
+    <g transform="translate(575, 0)">
+      <rect x="0" y="0" width="245" height="155" rx="8" fill="url(#grad-os)" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#a78bfa">3. OS Kernel (I/O)</text>
+      <text x="18" y="52" font-family="sans-serif" font-size="11" fill="#c9d1d9">Асинхронная вычитка пакета:</text>
+      <text x="18" y="74" font-family="sans-serif" font-size="11" fill="#8b949e">• Win: IOCP + WSARecv</text>
+      <text x="18" y="94" font-family="sans-serif" font-size="11" fill="#8b949e">• Linux: epoll (edge-triggered)</text>
+      <text x="18" y="114" font-family="sans-serif" font-size="11" fill="#8b949e">• Direct DMA в память POH</text>
+      <text x="18" y="138" font-family="sans-serif" font-size="11.5" font-weight="600" fill="#c4b5fd">Без промежуточных буферов</text>
+    </g>
   </g>
 
   <!-- Return Loop (Bottom) -->

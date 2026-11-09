@@ -25,56 +25,62 @@
   <!-- Segment Chain -->
   <g transform="translate(35, 85)">
     <!-- Segment 0: Recycled -->
-    <rect x="0" y="0" width="230" height="160" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.2"/>
-    <text x="16" y="26" font-family="monospace" font-size="12.5" font-weight="700" fill="#8b949e">BufferSegment [0]</text>
-    <text x="16" y="46" font-family="sans-serif" font-size="11" fill="#6e7681">Полностью прочитан</text>
-    
-    <rect x="16" y="62" width="198" height="38" rx="4" fill="#21262d" stroke="#30363d"/>
-    <text x="26" y="86" font-family="monospace" font-size="11" fill="#8b949e">Memory&lt;byte&gt; (4096 B)</text>
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="230" height="160" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.2"/>
+      <text x="16" y="26" font-family="monospace" font-size="12.5" font-weight="700" fill="#8b949e">BufferSegment [0]</text>
+      <text x="16" y="46" font-family="sans-serif" font-size="11" fill="#6e7681">Полностью прочитан</text>
+      
+      <rect x="16" y="62" width="198" height="38" rx="4" fill="#21262d" stroke="#30363d"/>
+      <text x="26" y="86" font-family="monospace" font-size="11" fill="#8b949e">Memory&lt;byte&gt; (4096 B)</text>
 
-    <rect x="16" y="112" width="198" height="32" rx="4" fill="#064e3b" fill-opacity="0.3" stroke="#059669"/>
-    <text x="26" y="132" font-family="sans-serif" font-size="11" font-weight="600" fill="#34d399">✓ Возвращен в MemoryPool</text>
+      <rect x="16" y="112" width="198" height="32" rx="4" fill="#064e3b" fill-opacity="0.3" stroke="#059669"/>
+      <text x="26" y="132" font-family="sans-serif" font-size="11" font-weight="600" fill="#34d399">✓ Возвращен в MemoryPool</text>
+    </g>
 
     <!-- Arrow 0 -> 1 -->
-    <line x1="236" y1="81" x2="280" y2="81" stroke="#484f58" stroke-width="2" marker-end="url(#arrow-gray)"/>
-    <text x="246" y="73" font-family="monospace" font-size="10" fill="#6e7681">_next</text>
+    <line x1="236" y1="80" x2="280" y2="80" stroke="#484f58" stroke-width="2" marker-end="url(#arrow-gray)"/>
+    <text x="246" y="72" font-family="monospace" font-size="10" fill="#6e7681">_next</text>
 
     <!-- Segment 1: Head of reader -->
-    <rect x="288" y="0" width="270" height="160" rx="8" fill="url(#grad-seg-read)" stroke="#3b82f6" stroke-width="1.5"/>
-    <text x="16" y="26" font-family="monospace" font-size="12.5" font-weight="700" fill="#60a5fa">BufferSegment [1] (_readHead)</text>
-    <text x="16" y="46" font-family="sans-serif" font-size="11" fill="#93c5fd">PipeReader: активный разбор</text>
+    <g transform="translate(288, 0)">
+      <rect x="0" y="0" width="270" height="160" rx="8" fill="url(#grad-seg-read)" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="16" y="26" font-family="monospace" font-size="12.5" font-weight="700" fill="#60a5fa">BufferSegment [1] (_readHead)</text>
+      <text x="16" y="46" font-family="sans-serif" font-size="11" fill="#93c5fd">PipeReader: активный разбор</text>
 
-    <!-- Consumed & Unconsumed Bar -->
-    <g transform="translate(16, 62)">
-      <rect x="0" y="0" width="90" height="38" rx="3" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
-      <text x="14" y="24" font-family="sans-serif" font-size="11" fill="#94a3b8">Consumed</text>
+      <!-- Consumed & Unconsumed Bar -->
+      <g transform="translate(16, 62)">
+        <rect x="0" y="0" width="90" height="38" rx="3" fill="#1e293b" stroke="#3b82f6" stroke-width="1"/>
+        <text x="14" y="24" font-family="sans-serif" font-size="11" fill="#94a3b8">Consumed</text>
 
-      <rect x="96" y="0" width="142" height="38" rx="3" fill="#10b981" fill-opacity="0.25" stroke="#10b981" stroke-width="1.2"/>
-      <text x="110" y="24" font-family="sans-serif" font-size="11" font-weight="600" fill="#a7f3d0">Unconsumed Data</text>
+        <rect x="96" y="0" width="142" height="38" rx="3" fill="#10b981" fill-opacity="0.25" stroke="#10b981" stroke-width="1.2"/>
+        <text x="108" y="24" font-family="sans-serif" font-size="11" font-weight="600" fill="#a7f3d0">Unconsumed Data</text>
+      </g>
+
+      <text x="16" y="125" font-family="monospace" font-size="10.5" fill="#60a5fa">Start -&gt; ReadOnlySequence</text>
+      <text x="16" y="143" font-family="sans-serif" font-size="10.5" fill="#8b949e">AdvanceTo(consumed, examined)</text>
     </g>
-
-    <text x="16" y="125" font-family="monospace" font-size="10.5" fill="#60a5fa">Start -&gt; ReadOnlySequence</text>
-    <text x="16" y="143" font-family="sans-serif" font-size="10.5" fill="#8b949e">AdvanceTo(consumed, examined)</text>
 
     <!-- Arrow 1 -> 2 -->
-    <line x1="564" y1="81" x2="608" y2="81" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)"/>
-    <text x="574" y="73" font-family="monospace" font-size="10" fill="#60a5fa">_next</text>
+    <line x1="564" y1="80" x2="608" y2="80" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="574" y="72" font-family="monospace" font-size="10" fill="#60a5fa">_next</text>
 
     <!-- Segment 2: Tail of writer -->
-    <rect x="616" y="0" width="248" height="160" rx="8" fill="url(#grad-seg-write)" stroke="#f59e0b" stroke-width="1.5"/>
-    <text x="16" y="26" font-family="monospace" font-size="12.5" font-weight="700" fill="#fbbf24">BufferSegment [2] (_writingHead)</text>
-    <text x="16" y="46" font-family="sans-serif" font-size="11" fill="#fde68a">PipeWriter: прием из сокета</text>
+    <g transform="translate(616, 0)">
+      <rect x="0" y="0" width="248" height="160" rx="8" fill="url(#grad-seg-write)" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="16" y="26" font-family="monospace" font-size="12.5" font-weight="700" fill="#fbbf24">BufferSegment [2] (_writingHead)</text>
+      <text x="16" y="46" font-family="sans-serif" font-size="11" fill="#fde68a">PipeWriter: прием из сокета</text>
 
-    <!-- Written & Free Bar -->
-    <g transform="translate(16, 62)">
-      <rect x="0" y="0" width="126" height="38" rx="3" fill="#10b981" fill-opacity="0.25" stroke="#10b981" stroke-width="1.2"/>
-      <text x="16" y="24" font-family="sans-serif" font-size="11" font-weight="600" fill="#a7f3d0">Written</text>
+      <!-- Written & Free Bar -->
+      <g transform="translate(16, 62)">
+        <rect x="0" y="0" width="126" height="38" rx="3" fill="#10b981" fill-opacity="0.25" stroke="#10b981" stroke-width="1.2"/>
+        <text x="16" y="24" font-family="sans-serif" font-size="11" font-weight="600" fill="#a7f3d0">Written</text>
 
-      <rect x="132" y="0" width="84" height="38" rx="3" fill="#21262d" stroke="#f59e0b" stroke-dasharray="3" stroke-width="1"/>
-      <text x="144" y="24" font-family="sans-serif" font-size="11" fill="#fbbf24">Free</text>
+        <rect x="132" y="0" width="84" height="38" rx="3" fill="#21262d" stroke="#f59e0b" stroke-dasharray="3" stroke-width="1"/>
+        <text x="144" y="24" font-family="sans-serif" font-size="11" fill="#fbbf24">Free</text>
+      </g>
+
+      <text x="16" y="125" font-family="monospace" font-size="10.5" fill="#fbbf24">End -&gt; границы записи</text>
+      <text x="16" y="143" font-family="sans-serif" font-size="10.5" fill="#8b949e">GetMemory() / Advance(n)</text>
     </g>
-
-    <text x="16" y="125" font-family="monospace" font-size="10.5" fill="#fbbf24">End -&gt; границы записи</text>
-    <text x="16" y="143" font-family="sans-serif" font-size="10.5" fill="#8b949e">GetMemory() / Advance(n)</text>
   </g>
 </svg>
