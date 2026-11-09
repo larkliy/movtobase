@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 460" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad-byte" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="grad-int" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.1"/>
+    </linearGradient>
+    <filter id="shadow-cast" x="-3%" y="-3%" width="106%" height="108%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#0d1117" rx="12"/>
+
+  <!-- Title -->
+  <text x="40" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="#f0f6fc">MemoryMarshal.Cast&lt;byte, int&gt;: Zero-Copy Reinterpretation</text>
+  <text x="40" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#8b949e">Переинтерпретация сырого буфера байтов без аллокаций, копирования и вызова GC</text>
+
+  <!-- Input: Span<byte> (16 bytes) -->
+  <g transform="translate(40, 105)">
+    <rect x="0" y="0" width="820" height="110" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+    <text x="20" y="28" font-family="monospace" font-size="14" font-weight="700" fill="#60a5fa">Span&lt;byte&gt; bytes (Length = 16, Size = 16 bytes)</text>
+
+    <!-- 16 Byte blocks -->
+    <g transform="translate(20, 45)">
+      <rect x="0" y="0" width="45" height="45" rx="4" fill="url(#grad-byte)" stroke="#3b82f6"/>
+      <text x="14" y="27" font-family="monospace" font-size="11" fill="#c9d1d9">0xAA</text>
+      <text x="17" y="40" font-family="sans-serif" font-size="9" fill="#8b949e">[0]</text>
+
+      <rect x="49" y="0" width="45" height="45" rx="4" fill="url(#grad-byte)" stroke="#3b82f6"/>
+      <text x="63" y="27" font-family="monospace" font-size="11" fill="#c9d1d9">0xBB</text>
+      <text x="66" y="40" font-family="sans-serif" font-size="9" fill="#8b949e">[1]</text>
+
+      <rect x="98" y="0" width="45" height="45" rx="4" fill="url(#grad-byte)" stroke="#3b82f6"/>
+      <text x="112" y="27" font-family="monospace" font-size="11" fill="#c9d1d9">0xCC</text>
+      <text x="115" y="40" font-family="sans-serif" font-size="9" fill="#8b949e">[2]</text>
+
+      <rect x="147" y="0" width="45" height="45" rx="4" fill="url(#grad-byte)" stroke="#3b82f6"/>
+      <text x="161" y="27" font-family="monospace" font-size="11" fill="#c9d1d9">0xDD</text>
+      <text x="164" y="40" font-family="sans-serif" font-size="9" fill="#8b949e">[3]</text>
+
+      <!-- Group 2 -->
+      <rect x="200" y="0" width="45" height="45" rx="4" fill="url(#grad-byte)" stroke="#3b82f6"/>
+      <text x="214" y="27" font-family="monospace" font-size="11" fill="#c9d1d9">0x11</text>
+      <text x="217" y="40" font-family="sans-serif" font-size="9" fill="#8b949e">[4]</text>
+
+      <rect x="249" y="0" width="45" height="45" rx="4" fill="url(#grad-byte)" stroke="#3b82f6"/>
+      <text x="263" y="27" font-family="monospace" font-size="11" fill="#c9d1d9">0x22</text>
+      <text x="266" y="40" font-family="sans-serif" font-size="9" fill="#8b949e">[5]</text>
+
+      <rect x="298" y="0" width="45" height="45" rx="4" fill="url(#grad-byte)" stroke="#3b82f6"/>
+      <text x="312" y="27" font-family="monospace" font-size="11" fill="#c9d1d9">0x33</text>
+      <text x="315" y="40" font-family="sans-serif" font-size="9" fill="#8b949e">[6]</text>
+
+      <rect x="347" y="0" width="45" height="45" rx="4" fill="url(#grad-byte)" stroke="#3b82f6"/>
+      <text x="361" y="27" font-family="monospace" font-size="11" fill="#c9d1d9">0x44</text>
+      <text x="364" y="40" font-family="sans-serif" font-size="9" fill="#8b949e">[7]</text>
+
+      <!-- Group 3 & 4 indicator -->
+      <rect x="400" y="0" width="190" height="45" rx="4" fill="#21262d" stroke="#30363d"/>
+      <text x="430" y="27" font-family="monospace" font-size="12" fill="#8b949e">bytes [8..11]</text>
+
+      <rect x="598" y="0" width="180" height="45" rx="4" fill="#21262d" stroke="#30363d"/>
+      <text x="630" y="27" font-family="monospace" font-size="12" fill="#8b949e">bytes [12..15]</text>
+    </g>
+  </g>
+
+  <!-- Arrow -->
+  <g transform="translate(420, 230)">
+    <text x="-120" y="8" font-family="sans-serif" font-size="12" font-weight="600" fill="#a78bfa">MemoryMarshal.Cast&lt;byte, int&gt;(bytes)</text>
+    <path d="M 0,16 L 30,16 L 25,12 M 30,16 L 25,20" stroke="#a78bfa" stroke-width="2" fill="none"/>
+  </g>
+
+  <!-- Output: Span<int> (4 ints) -->
+  <g transform="translate(40, 270)">
+    <rect x="0" y="0" width="820" height="150" rx="8" fill="#161b22" stroke="#10b981" stroke-width="1.2"/>
+    <text x="20" y="28" font-family="monospace" font-size="14" font-weight="700" fill="#34d399">Span&lt;int&gt; ints (Length = 4, Elements = int32)</text>
+    <text x="20" y="46" font-family="sans-serif" font-size="11" fill="#8b949e">Новый Span указывает на тот же адрес, но length = 16 / sizeof(int) = 4</text>
+
+    <g transform="translate(20, 60)">
+      <rect x="0" y="0" width="192" height="60" rx="6" fill="url(#grad-int)" stroke="#10b981" stroke-width="1.5"/>
+      <text x="15" y="26" font-family="monospace" font-size="13" font-weight="700" fill="#a7f3d0">ints[0] = 0xDDCCBBAA</text>
+      <text x="15" y="46" font-family="sans-serif" font-size="10" fill="#8b949e">Little-endian объединение 4 байт</text>
+
+      <rect x="200" y="0" width="192" height="60" rx="6" fill="url(#grad-int)" stroke="#10b981" stroke-width="1.5"/>
+      <text x="215" y="26" font-family="monospace" font-size="13" font-weight="700" fill="#a7f3d0">ints[1] = 0x44332211</text>
+      <text x="215" y="46" font-family="sans-serif" font-size="10" fill="#8b949e">Мгновенный доступ без сдвигов</text>
+
+      <rect x="400" y="0" width="190" height="60" rx="6" fill="url(#grad-int)" stroke="#10b981" stroke-width="1.5"/>
+      <text x="440" y="34" font-family="monospace" font-size="13" font-weight="700" fill="#a7f3d0">ints[2]</text>
+
+      <rect x="598" y="0" width="180" height="60" rx="6" fill="url(#grad-int)" stroke="#10b981" stroke-width="1.5"/>
+      <text x="640" y="34" font-family="monospace" font-size="13" font-weight="700" fill="#a7f3d0">ints[3]</text>
+    </g>
+  </g>
+</svg>

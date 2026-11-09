@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    background: #090c10;
+    color: #c9d1d9;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .card-container {
+    width: 860px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .card-header {
+    background: #161b22;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #21262d;
+    gap: 8px;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .dot-red { background: #ff5f56; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green { background: #27c93f; }
+  .card-title {
+    color: #8b949e;
+    font-size: 13px;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    margin-left: 10px;
+    font-weight: 500;
+  }
+  .card-body {
+    display: flex;
+    background: #0d1117;
+    font-family: "JetBrains Mono", Consolas, "Courier New", monospace;
+    font-size: 13.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+  }
+  .line-numbers {
+    padding: 16px 12px 16px 16px;
+    color: #484f58;
+    text-align: right;
+    user-select: none;
+    border-right: 1px solid #21262d;
+    font-size: 12.5px;
+  }
+  .code-content {
+    flex: 1;
+    padding: 16px 20px;
+    overflow-x: auto;
+  }
+  .code-content pre {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  .code-content code {
+    font-family: inherit !important;
+  }
+</style>
+</head>
+<body>
+  
+    <div id="code-gc-alloc-context" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/coreclr/gc/gcinterface.h:198-213 — Fast path: gc_alloc_context</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">198<br>199<br>200<br>201<br>202<br>203<br>204<br>205<br>206<br>207<br>208<br>209<br>210<br>211<br>212<br>213</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#8B949E">// The allocation context must be known to the VM for use in the allocation</span></span>
+<span class="line"><span style="color:#8B949E">// fast path and known to the GC for performing the allocation. Every Thread</span></span>
+<span class="line"><span style="color:#8B949E">// has its own allocation context that it hands to the GC when allocating.</span></span>
+<span class="line"><span style="color:#FF7B72">struct</span><span style="color:#FFA657"> gc_alloc_context</span></span>
+<span class="line"><span style="color:#E6EDF3">{</span></span>
+<span class="line"><span style="color:#FF7B72">    uint8_t*</span><span style="color:#E6EDF3">       alloc_ptr;</span></span>
+<span class="line"><span style="color:#FF7B72">    uint8_t*</span><span style="color:#E6EDF3">       alloc_limit;</span></span>
+<span class="line"><span style="color:#FF7B72">    int64_t</span><span style="color:#E6EDF3">        alloc_bytes;</span><span style="color:#8B949E"> //Number of bytes allocated on SOH by this context</span></span>
+<span class="line"><span style="color:#FF7B72">    int64_t</span><span style="color:#E6EDF3">        alloc_bytes_uoh;</span><span style="color:#8B949E"> //Number of bytes allocated not on SOH by this context</span></span>
+<span class="line"><span style="color:#8B949E">    // These two fields are deliberately not exposed past the EE-GC interface.</span></span>
+<span class="line"><span style="color:#FF7B72">    void*</span><span style="color:#E6EDF3">          gc_reserved_1;</span></span>
+<span class="line"><span style="color:#FF7B72">    void*</span><span style="color:#E6EDF3">          gc_reserved_2;</span></span>
+<span class="line"><span style="color:#FF7B72">    int</span><span style="color:#E6EDF3">            alloc_count;</span></span>
+<span class="line"><span style="color:#FF7B72">public:</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#FF7B72">    void</span><span style="color:#D2A8FF"> init</span><span style="color:#E6EDF3">()</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-gc-regions-invariants" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/coreclr/gc/gcpriv.h:135-153 — Инварианты регионов в CoreCLR GC</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">135<br>136<br>137<br>138<br>139<br>140<br>141<br>142<br>143<br>144<br>145<br>146<br>147<br>148<br>149<br>150<br>151<br>152<br>153</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#8B949E">/* the following section defines the optional features */</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">// Regions invariants -</span></span>
+<span class="line"><span style="color:#8B949E">//</span></span>
+<span class="line"><span style="color:#8B949E">// + each generation consists of 1+ regions.</span></span>
+<span class="line"><span style="color:#8B949E">// + a region is in a contiguous address range; different regions could have</span></span>
+<span class="line"><span style="color:#8B949E">//   gaps inbetween.</span></span>
+<span class="line"><span style="color:#8B949E">// + a region cannot contain more than one generation.</span></span>
+<span class="line"><span style="color:#8B949E">//</span></span>
+<span class="line"><span style="color:#8B949E">// This means any empty regions can be freely used for any generation. For</span></span>
+<span class="line"><span style="color:#8B949E">// Server GC we will balance regions between heaps.</span></span>
+<span class="line"><span style="color:#8B949E">// For now disable regions for standalone GC builds</span></span>
+<span class="line"><span style="color:#8B949E">// For SunOS or illumos this is temporary, until we can add MAP_PRIVATE</span></span>
+<span class="line"><span style="color:#8B949E">// to the mmap() calls in unix/gcenv.unix.cpp  More details here:</span></span>
+<span class="line"><span style="color:#8B949E">//    https://github.com/dotnet/runtime/issues/104211</span></span>
+<span class="line"><span style="color:#8B949E">// Apple non-macOS platforms (such as iOS, tvOS, and Mac Catalyst) disallow</span></span>
+<span class="line"><span style="color:#8B949E">// the large virtual address space reservations that GC regions require.</span></span>
+<span class="line"><span style="color:#FF7B72">#if</span><span style="color:#D2A8FF"> defined</span><span style="color:#E6EDF3"> (</span><span style="color:#D2A8FF">HOST_64BIT</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">&#x26;&#x26;</span><span style="color:#FF7B72"> !</span><span style="color:#D2A8FF">defined</span><span style="color:#E6EDF3"> (</span><span style="color:#D2A8FF">BUILD_AS_STANDALONE</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">&#x26;&#x26;</span><span style="color:#FF7B72"> !defined</span><span style="color:#E6EDF3">(</span><span style="color:#D2A8FF">__sun</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">&#x26;&#x26;</span><span style="color:#E6EDF3"> (</span><span style="color:#FF7B72">!defined</span><span style="color:#E6EDF3">(</span><span style="color:#D2A8FF">HOST_APPLE</span><span style="color:#E6EDF3">) </span><span style="color:#FF7B72">||</span><span style="color:#FF7B72"> defined</span><span style="color:#E6EDF3">(</span><span style="color:#D2A8FF">HOST_OSX</span><span style="color:#E6EDF3">))</span></span>
+<span class="line"><span style="color:#FF7B72">#define</span><span style="color:#D2A8FF"> USE_REGIONS</span><span style="color:#E6EDF3"></span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-gc-card-table" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/coreclr/gc/card_table.cpp:53-66 — Card Table: card_bundle_set</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">53<br>54<br>55<br>56<br>57<br>58<br>59<br>60<br>61<br>62<br>63<br>64<br>65<br>66</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#FF7B72">void</span><span style="color:#FFA657"> gc_heap</span><span style="color:#E6EDF3">::</span><span style="color:#D2A8FF">card_bundle_set</span><span style="color:#E6EDF3"> (</span><span style="color:#FF7B72">size_t</span><span style="color:#FFA657"> cardb</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">{</span></span>
+<span class="line"><span style="color:#FF7B72">    uint32_t</span><span style="color:#E6EDF3"> bits </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> (</span><span style="color:#79C0FF">1</span><span style="color:#FF7B72"> &#x3C;&#x3C;</span><span style="color:#D2A8FF"> card_bundle_bit</span><span style="color:#E6EDF3"> (cardb));</span></span>
+<span class="line"><span style="color:#D2A8FF">    set_bundle_bits</span><span style="color:#E6EDF3"> (</span><span style="color:#FF7B72">&#x26;</span><span style="color:#E6EDF3">card_bundle_table [</span><span style="color:#D2A8FF">card_bundle_word</span><span style="color:#E6EDF3"> (cardb)], bits);</span></span>
+<span class="line"><span style="color:#E6EDF3">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">// Set the card bundle bits between start_cardb and end_cardb</span></span>
+<span class="line"><span style="color:#FF7B72">void</span><span style="color:#FFA657"> gc_heap</span><span style="color:#E6EDF3">::</span><span style="color:#D2A8FF">card_bundles_set</span><span style="color:#E6EDF3"> (</span><span style="color:#FF7B72">size_t</span><span style="color:#FFA657"> start_cardb</span><span style="color:#E6EDF3">, </span><span style="color:#FF7B72">size_t</span><span style="color:#FFA657"> end_cardb</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">{</span></span>
+<span class="line"><span style="color:#FF7B72">    if</span><span style="color:#E6EDF3"> (start_cardb </span><span style="color:#FF7B72">==</span><span style="color:#E6EDF3"> end_cardb)</span></span>
+<span class="line"><span style="color:#E6EDF3">    {</span></span>
+<span class="line"><span style="color:#D2A8FF">        card_bundle_set</span><span style="color:#E6EDF3">(start_cardb);</span></span>
+<span class="line"><span style="color:#FF7B72">        return</span><span style="color:#E6EDF3">;</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-gc-allocate-uninitialized" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/coreclr/System.Private.CoreLib/src/System/GC.CoreCLR.cs:831-855 — AllocateUninitializedArray и POH</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">831<br>832<br>833<br>834<br>835<br>836<br>837<br>838<br>839<br>840<br>841<br>842<br>843<br>844<br>845<br>846<br>847<br>848<br>849<br>850<br>851<br>852<br>853<br>854<br>855</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">MethodImpl</span><span style="color:#E6EDF3">(MethodImplOptions.AggressiveInlining)] </span><span style="color:#8B949E">// forced to ensure no perf drop for small memory buffers (hot path)</span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> static</span><span style="color:#FF7B72"> unsafe</span><span style="color:#FFA657"> T</span><span style="color:#E6EDF3">[] </span><span style="color:#D2A8FF">AllocateUninitializedArray</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">>(</span><span style="color:#FF7B72">int</span><span style="color:#FFA657"> length</span><span style="color:#E6EDF3">, </span><span style="color:#FF7B72">bool</span><span style="color:#FFA657"> pinned</span><span style="color:#FF7B72"> =</span><span style="color:#79C0FF"> false</span><span style="color:#E6EDF3">) </span><span style="color:#8B949E">// T[] rather than T?[] to match `new T[length]` behavior</span></span>
+<span class="line"><span style="color:#E6EDF3">        {</span></span>
+<span class="line"><span style="color:#FF7B72">            if</span><span style="color:#E6EDF3"> (</span><span style="color:#FF7B72">!</span><span style="color:#E6EDF3">pinned)</span></span>
+<span class="line"><span style="color:#E6EDF3">            {</span></span>
+<span class="line"><span style="color:#FF7B72">                if</span><span style="color:#E6EDF3"> (RuntimeHelpers.</span><span style="color:#D2A8FF">IsReferenceOrContainsReferences</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">>())</span></span>
+<span class="line"><span style="color:#E6EDF3">                {</span></span>
+<span class="line"><span style="color:#FF7B72">                    return</span><span style="color:#FF7B72"> new</span><span style="color:#FFA657"> T</span><span style="color:#E6EDF3">[length];</span></span>
+<span class="line"><span style="color:#E6EDF3">                }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">                // for debug builds we always want to call AllocateNewArray to detect AllocateNewArray bugs</span></span>
+<span class="line"><span style="color:#E6EDF3">#</span><span style="color:#FF7B72">if</span><span style="color:#FF7B72"> !</span><span style="color:#FFA657">DEBUG</span></span>
+<span class="line"><span style="color:#8B949E">                // small arrays are allocated using `new[]` as that is generally faster.</span></span>
+<span class="line"><span style="color:#FF7B72">                if</span><span style="color:#E6EDF3"> (length </span><span style="color:#FF7B72">&#x3C;</span><span style="color:#79C0FF"> 2048</span><span style="color:#FF7B72"> /</span><span style="color:#FF7B72"> sizeof</span><span style="color:#E6EDF3">(</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">))</span></span>
+<span class="line"><span style="color:#E6EDF3">                {</span></span>
+<span class="line"><span style="color:#FF7B72">                    return</span><span style="color:#FF7B72"> new</span><span style="color:#FFA657"> T</span><span style="color:#E6EDF3">[length];</span></span>
+<span class="line"><span style="color:#E6EDF3">                }</span></span>
+<span class="line"><span style="color:#E6EDF3">#</span><span style="color:#FF7B72">endif</span></span>
+<span class="line"><span style="color:#E6EDF3">            }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#FF7B72">            return</span><span style="color:#D2A8FF"> AllocateNewArrayWorker</span><span style="color:#E6EDF3">(length, pinned);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#E6EDF3">            [</span><span style="color:#D2A8FF">MethodImpl</span><span style="color:#E6EDF3">(MethodImplOptions.NoInlining)]</span></span>
+<span class="line"><span style="color:#FF7B72">            static</span><span style="color:#FFA657"> T</span><span style="color:#E6EDF3">[] </span><span style="color:#D2A8FF">AllocateNewArrayWorker</span><span style="color:#E6EDF3">(</span><span style="color:#FF7B72">int</span><span style="color:#FFA657"> length</span><span style="color:#E6EDF3">, </span><span style="color:#FF7B72">bool</span><span style="color:#FFA657"> pinned</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">            {</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-span-struct-def" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.Private.CoreLib/src/System/Span.cs:25-45 — Анатомия ref struct Span<T></span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">25<br>26<br>27<br>28<br>29<br>30<br>31<br>32<br>33<br>34<br>35<br>36<br>37<br>38<br>39<br>40<br>41<br>42<br>43<br>44<br>45</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#E6EDF3">    [</span><span style="color:#FFA657">NonVersionable</span><span style="color:#E6EDF3">]</span></span>
+<span class="line"><span style="color:#E6EDF3">    [</span><span style="color:#FFA657">NativeMarshalling</span><span style="color:#E6EDF3">(</span><span style="color:#FF7B72">typeof</span><span style="color:#E6EDF3">(</span><span style="color:#FFA657">SpanMarshaller</span><span style="color:#E6EDF3">&#x3C;,>))]</span></span>
+<span class="line"><span style="color:#E6EDF3">    [</span><span style="color:#FFA657">Intrinsic</span><span style="color:#E6EDF3">]</span></span>
+<span class="line"><span style="color:#FF7B72">    public</span><span style="color:#FF7B72"> readonly</span><span style="color:#FF7B72"> ref</span><span style="color:#FF7B72"> struct</span><span style="color:#FFA657"> Span</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">></span></span>
+<span class="line"><span style="color:#E6EDF3">    {</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">>A byref or a native ptr.&#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#FF7B72">        internal</span><span style="color:#FF7B72"> readonly</span><span style="color:#FF7B72"> ref</span><span style="color:#FFA657"> T</span><span style="color:#FFA657"> _reference</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">>The number of elements this Span contains.&#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> readonly</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _length</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Creates a new span over the entirety of the target array.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">param</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"array"</span><span style="color:#8B949E">>The target array.&#x3C;/</span><span style="color:#7EE787">param</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">remarks</span><span style="color:#8B949E">>Returns default when &#x3C;</span><span style="color:#7EE787">paramref</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"array"</span><span style="color:#8B949E">/> is null.&#x3C;/</span><span style="color:#7EE787">remarks</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">exception</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"ArrayTypeMismatchException"</span><span style="color:#8B949E">>Thrown when &#x3C;</span><span style="color:#7EE787">paramref</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"array"</span><span style="color:#8B949E">/> is covariant and array's type is not exactly T[].&#x3C;/</span><span style="color:#7EE787">exception</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">MethodImpl</span><span style="color:#E6EDF3">(MethodImplOptions.AggressiveInlining)]</span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#D2A8FF"> Span</span><span style="color:#E6EDF3">(</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">[]? </span><span style="color:#FFA657">array</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">        {</span></span>
+<span class="line"><span style="color:#FF7B72">            if</span><span style="color:#E6EDF3"> (array </span><span style="color:#FF7B72">==</span><span style="color:#79C0FF"> null</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">            {</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-memory-struct-def" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.Private.CoreLib/src/System/Memory.cs:20-43 — Структура Memory<T> для async-контекстов</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">20<br>21<br>22<br>23<br>24<br>25<br>26<br>27<br>28<br>29<br>30<br>31<br>32<br>33<br>34<br>35<br>36<br>37<br>38<br>39<br>40<br>41<br>42<br>43</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#E6EDF3">    [</span><span style="color:#FFA657">DebuggerDisplay</span><span style="color:#E6EDF3">(</span><span style="color:#A5D6FF">"{ToString(),raw}"</span><span style="color:#E6EDF3">)]</span></span>
+<span class="line"><span style="color:#FF7B72">    public</span><span style="color:#FF7B72"> readonly</span><span style="color:#FF7B72"> struct</span><span style="color:#FFA657"> Memory</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">> : </span><span style="color:#FFA657">IEquatable</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">Memory</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">>></span></span>
+<span class="line"><span style="color:#E6EDF3">    {</span></span>
+<span class="line"><span style="color:#8B949E">        // The highest order bit of _index is used to discern whether _object is a pre-pinned array.</span></span>
+<span class="line"><span style="color:#8B949E">        // (_index &#x3C; 0) => _object is a pre-pinned array, so Pin() will not allocate a new GCHandle</span></span>
+<span class="line"><span style="color:#8B949E">        //       (else) => Pin() needs to allocate a new GCHandle to pin the object.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> readonly</span><span style="color:#FF7B72"> object</span><span style="color:#E6EDF3">? </span><span style="color:#FFA657">_object</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> readonly</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _index</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> readonly</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _length</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Creates a new memory over the entirety of the target array.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">param</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"array"</span><span style="color:#8B949E">>The target array.&#x3C;/</span><span style="color:#7EE787">param</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">remarks</span><span style="color:#8B949E">>Returns default when &#x3C;</span><span style="color:#7EE787">paramref</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"array"</span><span style="color:#8B949E">/> is null.&#x3C;/</span><span style="color:#7EE787">remarks</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">exception</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"ArrayTypeMismatchException"</span><span style="color:#8B949E">>Thrown when &#x3C;</span><span style="color:#7EE787">paramref</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"array"</span><span style="color:#8B949E">/> is covariant and array's type is not exactly T[].&#x3C;/</span><span style="color:#7EE787">exception</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">MethodImpl</span><span style="color:#E6EDF3">(MethodImplOptions.AggressiveInlining)]</span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#D2A8FF"> Memory</span><span style="color:#E6EDF3">(</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">[]? </span><span style="color:#FFA657">array</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">        {</span></span>
+<span class="line"><span style="color:#FF7B72">            if</span><span style="color:#E6EDF3"> (array </span><span style="color:#FF7B72">==</span><span style="color:#79C0FF"> null</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">            {</span></span>
+<span class="line"><span style="color:#79C0FF">                this</span><span style="color:#FF7B72"> =</span><span style="color:#FF7B72"> default</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">                return</span><span style="color:#E6EDF3">; </span><span style="color:#8B949E">// returns default</span></span>
+<span class="line"><span style="color:#E6EDF3">            }</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-memory-manager" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.Private.CoreLib/src/System/Buffers/MemoryManager.cs:15-35 — Базовый MemoryManager<T></span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">15<br>16<br>17<br>18<br>19<br>20<br>21<br>22<br>23<br>24<br>25<br>26<br>27<br>28<br>29<br>30<br>31<br>32<br>33<br>34<br>35</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> virtual</span><span style="color:#E6EDF3"> Memory</span><span style="color:#FF7B72">&#x3C;</span><span style="color:#E6EDF3">T</span><span style="color:#FF7B72">></span><span style="color:#FFA657"> Memory</span><span style="color:#FF7B72"> =></span><span style="color:#FF7B72"> new</span><span style="color:#FFA657"> Memory</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">>(</span><span style="color:#79C0FF">this</span><span style="color:#E6EDF3">, </span><span style="color:#D2A8FF">GetSpan</span><span style="color:#E6EDF3">().Length);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Returns a span wrapping the underlying memory.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> abstract</span><span style="color:#FFA657"> Span</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">> </span><span style="color:#D2A8FF">GetSpan</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Returns a handle to the memory that has been pinned and hence its address can be taken.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">param</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"elementIndex"</span><span style="color:#8B949E">>The offset to the element within the memory at which the returned &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"MemoryHandle"</span><span style="color:#8B949E">/> points to. (default = 0)&#x3C;/</span><span style="color:#7EE787">param</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> abstract</span><span style="color:#FFA657"> MemoryHandle</span><span style="color:#D2A8FF"> Pin</span><span style="color:#E6EDF3">(</span><span style="color:#FF7B72">int</span><span style="color:#FFA657"> elementIndex</span><span style="color:#FF7B72"> =</span><span style="color:#79C0FF"> 0</span><span style="color:#E6EDF3">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Lets the garbage collector know that the object is free to be moved now.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> abstract</span><span style="color:#FF7B72"> void</span><span style="color:#D2A8FF"> Unpin</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Returns a &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"Memory{T}"</span><span style="color:#8B949E">/> for the current &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"MemoryManager{T}"</span><span style="color:#8B949E">/>.</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-unsafe-aspointer" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.Private.CoreLib/src/System/Runtime/CompilerServices/Unsafe.cs:26-42 — JIT Intrinsic: AsPointer</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">26<br>27<br>28<br>29<br>30<br>31<br>32<br>33<br>34<br>35<br>36<br>37<br>38<br>39<br>40<br>41<br>42</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#8B949E">        // AOT:AsPointer</span></span>
+<span class="line"><span style="color:#8B949E">        // Mono:AsPointer</span></span>
+<span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">NonVersionable</span><span style="color:#E6EDF3">]</span></span>
+<span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">CLSCompliant</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">false</span><span style="color:#E6EDF3">)]</span></span>
+<span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">MethodImpl</span><span style="color:#E6EDF3">(MethodImplOptions.AggressiveInlining)]</span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> static</span><span style="color:#FF7B72"> void*</span><span style="color:#D2A8FF"> AsPointer</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">>(</span><span style="color:#FF7B72">ref</span><span style="color:#E6EDF3"> readonly T value)</span></span>
+<span class="line"><span style="color:#E6EDF3">            where </span><span style="color:#FFA657">T</span><span style="color:#E6EDF3"> : allows </span><span style="color:#FF7B72">ref</span><span style="color:#E6EDF3"> struct</span></span>
+<span class="line"><span style="color:#E6EDF3">        {</span></span>
+<span class="line"><span style="color:#E6EDF3">            throw </span><span style="color:#FF7B72">new</span><span style="color:#D2A8FF"> PlatformNotSupportedException</span><span style="color:#E6EDF3">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">            // ldarg.0</span></span>
+<span class="line"><span style="color:#8B949E">            // conv.u</span></span>
+<span class="line"><span style="color:#8B949E">            // ret</span></span>
+<span class="line"><span style="color:#E6EDF3">        }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Returns the size of an object of the given type parameter.</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-memorymarshal-cast" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.Private.CoreLib/src/System/Runtime/InteropServices/MemoryMarshal.cs:46-74 — MemoryMarshal.Cast</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">46<br>47<br>48<br>49<br>50<br>51<br>52<br>53<br>54<br>55<br>56<br>57<br>58<br>59<br>60<br>61<br>62<br>63<br>64<br>65<br>66<br>67<br>68<br>69<br>70<br>71<br>72<br>73<br>74</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">param</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"span"</span><span style="color:#8B949E">>The source slice, of type &#x3C;</span><span style="color:#7EE787">typeparamref</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"T"</span><span style="color:#8B949E">/>.&#x3C;/</span><span style="color:#7EE787">param</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">exception</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"ArgumentException"</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Thrown when &#x3C;</span><span style="color:#7EE787">typeparamref</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"T"</span><span style="color:#8B949E">/> contains pointers.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">exception</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">exception</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"OverflowException"</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// Thrown if the Length property of the new Span would exceed int.MaxValue.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">exception</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">MethodImpl</span><span style="color:#E6EDF3">(MethodImplOptions.AggressiveInlining)]</span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> static</span><span style="color:#FF7B72"> unsafe</span><span style="color:#FFA657"> ReadOnlySpan</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FF7B72">byte</span><span style="color:#E6EDF3">> </span><span style="color:#D2A8FF">AsBytes</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">>(</span><span style="color:#FFA657">ReadOnlySpan</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">> </span><span style="color:#FFA657">span</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#FF7B72">            where</span><span style="color:#FFA657"> T</span><span style="color:#E6EDF3"> : </span><span style="color:#FF7B72">struct</span></span>
+<span class="line"><span style="color:#E6EDF3">        {</span></span>
+<span class="line"><span style="color:#FF7B72">            if</span><span style="color:#E6EDF3"> (RuntimeHelpers.</span><span style="color:#D2A8FF">IsReferenceOrContainsReferences</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">>())</span></span>
+<span class="line"><span style="color:#E6EDF3">                ThrowHelper.</span><span style="color:#D2A8FF">ThrowArgument_TypeContainsReferences</span><span style="color:#E6EDF3">(</span><span style="color:#FF7B72">typeof</span><span style="color:#E6EDF3">(</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">));</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#FF7B72">            return</span><span style="color:#FF7B72"> new</span><span style="color:#FFA657"> ReadOnlySpan</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FF7B72">byte</span><span style="color:#E6EDF3">>(</span></span>
+<span class="line"><span style="color:#FF7B72">                ref</span><span style="color:#E6EDF3"> Unsafe.</span><span style="color:#D2A8FF">As</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">, </span><span style="color:#FF7B72">byte</span><span style="color:#E6EDF3">>(</span><span style="color:#FF7B72">ref</span><span style="color:#D2A8FF"> GetReference</span><span style="color:#E6EDF3">(span)),</span></span>
+<span class="line"><span style="color:#FF7B72">                checked</span><span style="color:#E6EDF3">(span.Length </span><span style="color:#FF7B72">*</span><span style="color:#FF7B72"> sizeof</span><span style="color:#E6EDF3">(</span><span style="color:#FFA657">T</span><span style="color:#E6EDF3">)));</span></span>
+<span class="line"><span style="color:#E6EDF3">        }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">>Creates a &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"Memory{T}"</span><span style="color:#8B949E">/> from a &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"ReadOnlyMemory{T}"</span><span style="color:#8B949E">/>.&#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">param</span><span style="color:#79C0FF"> name</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"memory"</span><span style="color:#8B949E">>The &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"ReadOnlyMemory{T}"</span><span style="color:#8B949E">/>.&#x3C;/</span><span style="color:#7EE787">param</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">returns</span><span style="color:#8B949E">>A &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"Memory{T}"</span><span style="color:#8B949E">/> representing the same memory as the &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"ReadOnlyMemory{T}"</span><span style="color:#8B949E">/>, but writable.&#x3C;/</span><span style="color:#7EE787">returns</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">remarks</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"AsMemory{T}(ReadOnlyMemory{T})"</span><span style="color:#8B949E">/> must be used with extreme caution.  &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"ReadOnlyMemory{T}"</span><span style="color:#8B949E">/> is used</span></span>
+<span class="line"><span style="color:#8B949E">        /// to represent immutable data and other memory that is not meant to be written to; &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"Memory{T}"</span><span style="color:#8B949E">/> instances created</span></span>
+<span class="line"><span style="color:#8B949E">        /// by &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"AsMemory{T}(ReadOnlyMemory{T})"</span><span style="color:#8B949E">/> should not be written to.  The method exists to enable variables typed</span></span>
+<span class="line"><span style="color:#8B949E">        /// as &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"Memory{T}"</span><span style="color:#8B949E">/> but only used for reading to store a &#x3C;</span><span style="color:#7EE787">see</span><span style="color:#79C0FF"> cref</span><span style="color:#8B949E">=</span><span style="color:#A5D6FF">"ReadOnlyMemory{T}"</span><span style="color:#8B949E">/>.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">remarks</span><span style="color:#8B949E">></span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-memorymarshal-getarraydata" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.Private.CoreLib/src/System/Runtime/InteropServices/MemoryMarshal.cs:116-126 — GetArrayDataReference</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">116<br>117<br>118<br>119<br>120<br>121<br>122<br>123<br>124<br>125<br>126</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">Intrinsic</span><span style="color:#E6EDF3">]</span></span>
+<span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">MethodImpl</span><span style="color:#E6EDF3">(MethodImplOptions.AggressiveInlining)]</span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> static</span><span style="color:#FF7B72"> unsafe</span><span style="color:#FF7B72"> ref</span><span style="color:#FF7B72"> byte</span><span style="color:#D2A8FF"> GetArrayDataReference</span><span style="color:#E6EDF3">(</span><span style="color:#FFA657">Array</span><span style="color:#FFA657"> array</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#E6EDF3">        {</span></span>
+<span class="line"><span style="color:#8B949E">            // If needed, we can save one or two instructions per call by marking this method as intrinsic and asking the JIT</span></span>
+<span class="line"><span style="color:#8B949E">            // to special-case arrays of known type and dimension.</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">            // See comment on RawArrayData (in RuntimeHelpers.CoreCLR.cs / RuntimeHelpers.NativeAot.cs) for details</span></span>
+<span class="line"><span style="color:#FF7B72">            return</span><span style="color:#FF7B72"> ref</span><span style="color:#E6EDF3"> Unsafe.</span><span style="color:#D2A8FF">AddByteOffset</span><span style="color:#E6EDF3">(</span><span style="color:#FF7B72">ref</span><span style="color:#E6EDF3"> Unsafe.</span><span style="color:#D2A8FF">As</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">RawData</span><span style="color:#E6EDF3">>(array).Data, (</span><span style="color:#FF7B72">nuint</span><span style="color:#E6EDF3">)RuntimeHelpers.</span><span style="color:#D2A8FF">GetMethodTable</span><span style="color:#E6EDF3">(array)->BaseSize </span><span style="color:#FF7B72">-</span><span style="color:#E6EDF3"> (</span><span style="color:#FF7B72">nuint</span><span style="color:#E6EDF3">)(</span><span style="color:#79C0FF">2</span><span style="color:#FF7B72"> *</span><span style="color:#FF7B72"> sizeof</span><span style="color:#E6EDF3">(</span><span style="color:#FFA657">IntPtr</span><span style="color:#E6EDF3">)));</span></span>
+<span class="line"><span style="color:#E6EDF3">        }</span></span>
+<span class="line"><span style="color:#E6EDF3">#</span><span style="color:#FF7B72">endif</span><span style="color:#8B949E"> // !MONO</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-nativeaot-methodtable" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/coreclr/nativeaot/Common/src/Internal/Runtime/MethodTable.cs:125-148 — MethodTable в NativeAOT</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">125<br>126<br>127<br>128<br>129<br>130<br>131<br>132<br>133<br>134<br>135<br>136<br>137<br>138<br>139<br>140<br>141<br>142<br>143<br>144<br>145<br>146<br>147<br>148</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#E6EDF3">    [</span><span style="color:#FFA657">StructLayout</span><span style="color:#E6EDF3">(LayoutKind.Sequential)]</span></span>
+<span class="line"><span style="color:#FF7B72">    internal</span><span style="color:#FF7B72"> unsafe</span><span style="color:#FF7B72"> partial</span><span style="color:#FF7B72"> struct</span><span style="color:#FFA657"> MethodTable</span></span>
+<span class="line"><span style="color:#E6EDF3">    {</span></span>
+<span class="line"><span style="color:#E6EDF3">#</span><span style="color:#FF7B72">if</span><span style="color:#FFA657"> TARGET_64BIT</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> const</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> POINTER_SIZE</span><span style="color:#FF7B72"> =</span><span style="color:#79C0FF"> 8</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> const</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> PADDING</span><span style="color:#FF7B72"> =</span><span style="color:#79C0FF"> 1</span><span style="color:#E6EDF3">; </span><span style="color:#8B949E">// _numComponents is padded by one Int32 to make the first element pointer-aligned</span></span>
+<span class="line"><span style="color:#E6EDF3">#</span><span style="color:#FF7B72">else</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> const</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> POINTER_SIZE</span><span style="color:#FF7B72"> =</span><span style="color:#79C0FF"> 4</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> const</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> PADDING</span><span style="color:#FF7B72"> =</span><span style="color:#79C0FF"> 0</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#E6EDF3">#</span><span style="color:#FF7B72">endif</span></span>
+<span class="line"><span style="color:#FF7B72">        internal</span><span style="color:#FF7B72"> const</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> SZARRAY_BASE_SIZE</span><span style="color:#FF7B72"> =</span><span style="color:#E6EDF3"> POINTER_SIZE </span><span style="color:#FF7B72">+</span><span style="color:#E6EDF3"> POINTER_SIZE </span><span style="color:#FF7B72">+</span><span style="color:#E6EDF3"> (</span><span style="color:#79C0FF">1</span><span style="color:#FF7B72"> +</span><span style="color:#E6EDF3"> PADDING) </span><span style="color:#FF7B72">*</span><span style="color:#79C0FF"> 4</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#E6EDF3">        [</span><span style="color:#FFA657">StructLayout</span><span style="color:#E6EDF3">(LayoutKind.Explicit)]</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> unsafe</span><span style="color:#FF7B72"> struct</span><span style="color:#FFA657"> RelatedTypeUnion</span></span>
+<span class="line"><span style="color:#E6EDF3">        {</span></span>
+<span class="line"><span style="color:#8B949E">            // Kinds.CanonicalEEType</span></span>
+<span class="line"><span style="color:#E6EDF3">            [</span><span style="color:#FFA657">FieldOffset</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">0</span><span style="color:#E6EDF3">)]</span></span>
+<span class="line"><span style="color:#FF7B72">            public</span><span style="color:#E6EDF3"> MethodTable* _pBaseType;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">            // Kinds.ArrayEEType</span></span>
+<span class="line"><span style="color:#E6EDF3">            [</span><span style="color:#FFA657">FieldOffset</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">0</span><span style="color:#E6EDF3">)]</span></span>
+<span class="line"><span style="color:#FF7B72">            public</span><span style="color:#E6EDF3"> MethodTable* _pRelatedParameterType;</span></span>
+<span class="line"><span style="color:#E6EDF3">        }</span></span>
+<span class="line"><span style="color:#E6EDF3"></span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-nativeaot-bootstrap-main" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/coreclr/nativeaot/Bootstrap/main.cpp:20-46 — Точка входа main() и вызов CoreLib</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">20<br>21<br>22<br>23<br>24<br>25<br>26<br>27<br>28<br>29<br>30<br>31<br>32<br>33<br>34<br>35<br>36<br>37<br>38<br>39<br>40<br>41<br>42<br>43<br>44<br>45<br>46</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#8B949E">//</span></span>
+<span class="line"><span style="color:#FF7B72">#if</span><span style="color:#FF7B72"> defined</span><span style="color:#E6EDF3">(</span><span style="color:#D2A8FF">_MSC_VER</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#FF7B72">#pragma</span><span style="color:#79C0FF"> section</span><span style="color:#E6EDF3">(</span><span style="color:#A5D6FF">".modules$A"</span><span style="color:#E6EDF3">, </span><span style="color:#79C0FF">read</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#FF7B72">#pragma</span><span style="color:#79C0FF"> section</span><span style="color:#E6EDF3">(</span><span style="color:#A5D6FF">".modules$Z"</span><span style="color:#E6EDF3">, </span><span style="color:#79C0FF">read</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"><span style="color:#FF7B72">extern</span><span style="color:#A5D6FF"> "C"</span><span style="color:#D2A8FF"> __declspec</span><span style="color:#E6EDF3">(</span><span style="color:#D2A8FF">allocate</span><span style="color:#E6EDF3">(</span><span style="color:#A5D6FF">".modules$A"</span><span style="color:#E6EDF3">)) </span><span style="color:#FF7B72">void</span><span style="color:#FF7B72"> *</span><span style="color:#E6EDF3"> __modules_a[];</span></span>
+<span class="line"><span style="color:#FF7B72">extern</span><span style="color:#A5D6FF"> "C"</span><span style="color:#D2A8FF"> __declspec</span><span style="color:#E6EDF3">(</span><span style="color:#D2A8FF">allocate</span><span style="color:#E6EDF3">(</span><span style="color:#A5D6FF">".modules$Z"</span><span style="color:#E6EDF3">)) </span><span style="color:#FF7B72">void</span><span style="color:#FF7B72"> *</span><span style="color:#E6EDF3"> __modules_z[];</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#79C0FF">__declspec(allocate(</span><span style="color:#A5D6FF">".modules$A"</span><span style="color:#79C0FF">))</span><span style="color:#FF7B72"> void</span><span style="color:#FF7B72"> *</span><span style="color:#E6EDF3"> __modules_a[] </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> { </span><span style="color:#79C0FF">nullptr</span><span style="color:#E6EDF3"> };</span></span>
+<span class="line"><span style="color:#79C0FF">__declspec(allocate(</span><span style="color:#A5D6FF">".modules$Z"</span><span style="color:#79C0FF">))</span><span style="color:#FF7B72"> void</span><span style="color:#FF7B72"> *</span><span style="color:#E6EDF3"> __modules_z[] </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> { </span><span style="color:#79C0FF">nullptr</span><span style="color:#E6EDF3"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">//</span></span>
+<span class="line"><span style="color:#8B949E">// Each obj file compiled from managed code has a .modules$I section containing a pointer to its ReadyToRun</span></span>
+<span class="line"><span style="color:#8B949E">// data (which points at eager class constructors, frozen strings, etc).</span></span>
+<span class="line"><span style="color:#8B949E">//</span></span>
+<span class="line"><span style="color:#8B949E">// The #pragma ... /merge directive folds the book-end sections and all .modules$I sections from all input</span></span>
+<span class="line"><span style="color:#8B949E">// obj files into .rdata in alphabetical order.</span></span>
+<span class="line"><span style="color:#8B949E">//</span></span>
+<span class="line"><span style="color:#FF7B72">#pragma</span><span style="color:#79C0FF"> comment</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">linker</span><span style="color:#E6EDF3">, </span><span style="color:#A5D6FF">"/merge:.modules=.rdata"</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">//</span></span>
+<span class="line"><span style="color:#8B949E">// Unboxing stubs need to be merged, folded and sorted. They are delimited by two special sections (.unbox$A</span></span>
+<span class="line"><span style="color:#8B949E">// and .unbox$Z). All unboxing stubs are in .unbox$M sections.</span></span>
+<span class="line"><span style="color:#8B949E">//</span></span>
+<span class="line"><span style="color:#FF7B72">#pragma</span><span style="color:#79C0FF"> comment</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">linker</span><span style="color:#E6EDF3">, </span><span style="color:#A5D6FF">"/merge:.unbox=.text"</span><span style="color:#E6EDF3">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#FF7B72">char</span><span style="color:#E6EDF3"> _bookend_a;</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-saea-struct" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.Net.Sockets/src/System/Net/Sockets/SocketAsyncEventArgs.cs:25-55 — Поля SAEA</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">25<br>26<br>27<br>28<br>29<br>30<br>31<br>32<br>33<br>34<br>35<br>36<br>37<br>38<br>39<br>40<br>41<br>42<br>43<br>44<br>45<br>46<br>47<br>48<br>49<br>50<br>51<br>52<br>53<br>54<br>55</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // BufferList property variables.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> IList</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">ArraySegment</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FF7B72">byte</span><span style="color:#E6EDF3">>>? </span><span style="color:#FFA657">_bufferList</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> List</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FFA657">ArraySegment</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FF7B72">byte</span><span style="color:#E6EDF3">>>? </span><span style="color:#FFA657">_bufferListInternal</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // BytesTransferred property variables.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _bytesTransferred</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // DisconnectReuseSocket property variables.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> bool</span><span style="color:#FFA657"> _disconnectReuseSocket</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // LastOperation property variables.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> SocketAsyncOperation</span><span style="color:#FFA657"> _completedOperation</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // ReceiveMessageFromPacketInfo property variables.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> IPPacketInformation</span><span style="color:#FFA657"> _receiveMessageFromPacketInfo</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // RemoteEndPoint property variables.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> EndPoint</span><span style="color:#E6EDF3">? </span><span style="color:#FFA657">_remoteEndPoint</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // SendPacketsSendSize property variable.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _sendPacketsSendSize</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // SendPacketsElements property variables.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> SendPacketsElement</span><span style="color:#E6EDF3">[]? </span><span style="color:#FFA657">_sendPacketsElements</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // SendPacketsFlags property variable.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> TransmitFileOptions</span><span style="color:#FFA657"> _sendPacketsFlags</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // SocketError property variables.</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> SocketError</span><span style="color:#FFA657"> _socketError</span><span style="color:#E6EDF3">;</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-pipe-buffersegment" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.IO.Pipelines/src/System/IO/Pipelines/BufferSegment.cs:10-32 — BufferSegment в Pipelines</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">10<br>11<br>12<br>13<br>14<br>15<br>16<br>17<br>18<br>19<br>20<br>21<br>22<br>23<br>24<br>25<br>26<br>27<br>28<br>29<br>30<br>31<br>32</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"><span style="color:#FF7B72">    internal</span><span style="color:#FF7B72"> sealed</span><span style="color:#FF7B72"> class</span><span style="color:#FFA657"> BufferSegment</span><span style="color:#E6EDF3"> : </span><span style="color:#FFA657">ReadOnlySequenceSegment</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FF7B72">byte</span><span style="color:#E6EDF3">></span></span>
+<span class="line"><span style="color:#E6EDF3">    {</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> IMemoryOwner</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FF7B72">byte</span><span style="color:#E6EDF3">>? </span><span style="color:#FFA657">_memoryOwner</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> byte</span><span style="color:#E6EDF3">[]? </span><span style="color:#FFA657">_array</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> BufferSegment</span><span style="color:#E6EDF3">? </span><span style="color:#FFA657">_next</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _end</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#8B949E">        /// The End represents the offset into AvailableMemory where the range of "active" bytes ends. At the point when the block is leased</span></span>
+<span class="line"><span style="color:#8B949E">        /// the End is guaranteed to be equal to Start. The value of Start may be assigned anywhere between 0 and</span></span>
+<span class="line"><span style="color:#8B949E">        /// Buffer.Length, and must be equal to or less than End.</span></span>
+<span class="line"><span style="color:#8B949E">        /// &#x3C;/</span><span style="color:#7EE787">summary</span><span style="color:#8B949E">></span></span>
+<span class="line"><span style="color:#FF7B72">        public</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> End</span></span>
+<span class="line"><span style="color:#E6EDF3">        {</span></span>
+<span class="line"><span style="color:#FF7B72">            get</span><span style="color:#FF7B72"> =></span><span style="color:#E6EDF3"> _end;</span></span>
+<span class="line"><span style="color:#FF7B72">            set</span></span>
+<span class="line"><span style="color:#E6EDF3">            {</span></span>
+<span class="line"><span style="color:#E6EDF3">                Debug.</span><span style="color:#D2A8FF">Assert</span><span style="color:#E6EDF3">(value </span><span style="color:#FF7B72">&#x3C;=</span><span style="color:#E6EDF3"> AvailableMemory.Length);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#E6EDF3">                _end </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> value;</span></span>
+<span class="line"><span style="color:#E6EDF3">                Memory </span><span style="color:#FF7B72">=</span><span style="color:#E6EDF3"> AvailableMemory.</span><span style="color:#D2A8FF">Slice</span><span style="color:#E6EDF3">(</span><span style="color:#79C0FF">0</span><span style="color:#E6EDF3">, value);</span></span>
+<span class="line"><span style="color:#E6EDF3">            }</span></span>
+<span class="line"><span style="color:#E6EDF3">        }</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+    <div id="code-pipe-unconsumed" class="card-container">
+      <div class="card-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span class="card-title">src/libraries/System.IO.Pipelines/src/System/IO/Pipelines/Pipe.cs:58-88 — Указатели голов и хвостов в Pipe</span>
+      </div>
+      <div class="card-body">
+        <div class="line-numbers">58<br>59<br>60<br>61<br>62<br>63<br>64<br>65<br>66<br>67<br>68<br>69<br>70<br>71<br>72<br>73<br>74<br>75<br>76<br>77<br>78<br>79<br>80<br>81<br>82<br>83<br>84<br>85<br>86<br>87<br>88</div>
+        <div class="code-content"><pre class="shiki github-dark-default" style="background-color:#0d1117;color:#e6edf3" tabindex="0"><code><span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // The number of bytes flushed but not consumed by the reader</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> long</span><span style="color:#FFA657"> _unconsumedBytes</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // The number of bytes written but not flushed</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> long</span><span style="color:#FFA657"> _unflushedBytes</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> PipeAwaitable</span><span style="color:#FFA657"> _readerAwaitable</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> PipeAwaitable</span><span style="color:#FFA657"> _writerAwaitable</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> PipeCompletion</span><span style="color:#FFA657"> _writerCompletion</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> PipeCompletion</span><span style="color:#FFA657"> _readerCompletion</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // Stores the last examined position, used to calculate how many bytes were to release</span></span>
+<span class="line"><span style="color:#8B949E">        // for back pressure management</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> long</span><span style="color:#FFA657"> _lastExaminedIndex</span><span style="color:#FF7B72"> =</span><span style="color:#FF7B72"> -</span><span style="color:#79C0FF">1</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // The read head which is the start of the PipeReader's consumed bytes</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> BufferSegment</span><span style="color:#E6EDF3">? </span><span style="color:#FFA657">_readHead</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _readHeadIndex</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> bool</span><span style="color:#FFA657"> _disposed</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // The extent of the bytes available to the PipeReader to consume</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> BufferSegment</span><span style="color:#E6EDF3">? </span><span style="color:#FFA657">_readTail</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _readTailIndex</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FF7B72"> int</span><span style="color:#FFA657"> _minimumReadBytes</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#8B949E">        // The write head which is the extent of the PipeWriter's written bytes</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> BufferSegment</span><span style="color:#E6EDF3">? </span><span style="color:#FFA657">_writingHead</span><span style="color:#E6EDF3">;</span></span>
+<span class="line"><span style="color:#FF7B72">        private</span><span style="color:#FFA657"> Memory</span><span style="color:#E6EDF3">&#x3C;</span><span style="color:#FF7B72">byte</span><span style="color:#E6EDF3">> </span><span style="color:#FFA657">_writingHeadMemory</span><span style="color:#E6EDF3">;</span></span></code></pre></div>
+      </div>
+    </div>
+    
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetId = urlParams.get('card');
+    if (targetId) {
+      document.querySelectorAll('.card-container').forEach(el => {
+        if (el.id !== targetId) {
+          el.style.display = 'none';
+        } else {
+          el.style.display = 'block';
+          el.style.margin = '0 auto';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

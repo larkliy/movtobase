@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 588" width="100%" height="100%">
+  <defs>
+    <filter id="shadow-code-pipe-buffersegment" x="-3%" y="-3%" width="106%" height="108%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- Container -->
+  <rect x="2" y="2" width="876" height="584" rx="10" fill="#0d1117" stroke="#30363d" stroke-width="1.2" filter="url(#shadow-code-pipe-buffersegment)"/>
+
+  <!-- Title bar -->
+  <path d="M 3,2 L 877,2 Q 878,2 878,12 L 878,42 L 2,42 L 2,12 Q 2,2 3,2 Z" fill="#161b22"/>
+  <line x1="2" y1="42" x2="878" y2="42" stroke="#21262d" stroke-width="1"/>
+
+  <!-- Window dots -->
+  <circle cx="20" cy="21" r="6" fill="#ff5f56"/>
+  <circle cx="38" cy="21" r="6" fill="#ffbd2e"/>
+  <circle cx="56" cy="21" r="6" fill="#27c93f"/>
+
+  <!-- Title / Path -->
+  <text x="80" y="25.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12.5" font-weight="600" fill="#8b949e">src/libraries/System.IO.Pipelines/src/System/IO/Pipelines/BufferSegment.cs:10-32 — BufferSegment в Pipelines</text>
+
+  <!-- Line numbers separator -->
+  <line x1="65" y1="42" x2="65" y2="586" stroke="#21262d" stroke-width="1"/>
+
+  <!-- Code content -->
+  <text x="53" y="78" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">10</text>
+  <text x="79" y="78" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">    </tspan><tspan fill="#FF7B72">internal</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FF7B72">sealed</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FF7B72">class</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FFA657">BufferSegment</tspan><tspan fill="#E6EDF3"> : </tspan><tspan fill="#FFA657">ReadOnlySequenceSegment</tspan><tspan fill="#E6EDF3">&lt;</tspan><tspan fill="#FF7B72">byte</tspan><tspan fill="#E6EDF3">&gt;</tspan></text>
+  <text x="53" y="100" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">11</text>
+  <text x="79" y="100" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">    {</tspan></text>
+  <text x="53" y="122" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">12</text>
+  <text x="79" y="122" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">        </tspan><tspan fill="#FF7B72">private</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FFA657">IMemoryOwner</tspan><tspan fill="#E6EDF3">&lt;</tspan><tspan fill="#FF7B72">byte</tspan><tspan fill="#E6EDF3">&gt;? </tspan><tspan fill="#FFA657">_memoryOwner</tspan><tspan fill="#E6EDF3">;</tspan></text>
+  <text x="53" y="144" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">13</text>
+  <text x="79" y="144" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">        </tspan><tspan fill="#FF7B72">private</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FF7B72">byte</tspan><tspan fill="#E6EDF3">[]? </tspan><tspan fill="#FFA657">_array</tspan><tspan fill="#E6EDF3">;</tspan></text>
+  <text x="53" y="166" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">14</text>
+  <text x="79" y="166" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">        </tspan><tspan fill="#FF7B72">private</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FFA657">BufferSegment</tspan><tspan fill="#E6EDF3">? </tspan><tspan fill="#FFA657">_next</tspan><tspan fill="#E6EDF3">;</tspan></text>
+  <text x="53" y="188" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">15</text>
+  <text x="79" y="188" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">        </tspan><tspan fill="#FF7B72">private</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FF7B72">int</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FFA657">_end</tspan><tspan fill="#E6EDF3">;</tspan></text>
+  <text x="53" y="210" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">16</text>
+  <text x="79" y="210" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"></text>
+  <text x="53" y="232" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">17</text>
+  <text x="79" y="232" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#8B949E">        /// &lt;</tspan><tspan fill="#7EE787">summary</tspan><tspan fill="#8B949E">&gt;</tspan></text>
+  <text x="53" y="254" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">18</text>
+  <text x="79" y="254" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#8B949E">        /// The End represents the offset into AvailableMemory where the range of &quot;active&quot; bytes ends. At the point when the block is leased</tspan></text>
+  <text x="53" y="276" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">19</text>
+  <text x="79" y="276" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#8B949E">        /// the End is guaranteed to be equal to Start. The value of Start may be assigned anywhere between 0 and</tspan></text>
+  <text x="53" y="298" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">20</text>
+  <text x="79" y="298" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#8B949E">        /// Buffer.Length, and must be equal to or less than End.</tspan></text>
+  <text x="53" y="320" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">21</text>
+  <text x="79" y="320" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#8B949E">        /// &lt;/</tspan><tspan fill="#7EE787">summary</tspan><tspan fill="#8B949E">&gt;</tspan></text>
+  <text x="53" y="342" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">22</text>
+  <text x="79" y="342" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">        </tspan><tspan fill="#FF7B72">public</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FF7B72">int</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FFA657">End</tspan></text>
+  <text x="53" y="364" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">23</text>
+  <text x="79" y="364" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">        {</tspan></text>
+  <text x="53" y="386" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">24</text>
+  <text x="79" y="386" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">            </tspan><tspan fill="#FF7B72">get</tspan><tspan fill="#E6EDF3"> </tspan><tspan fill="#FF7B72">=&gt;</tspan><tspan fill="#E6EDF3"> _end;</tspan></text>
+  <text x="53" y="408" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">25</text>
+  <text x="79" y="408" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">            </tspan><tspan fill="#FF7B72">set</tspan></text>
+  <text x="53" y="430" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">26</text>
+  <text x="79" y="430" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">            {</tspan></text>
+  <text x="53" y="452" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">27</text>
+  <text x="79" y="452" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">                Debug.</tspan><tspan fill="#D2A8FF">Assert</tspan><tspan fill="#E6EDF3">(value </tspan><tspan fill="#FF7B72">&lt;=</tspan><tspan fill="#E6EDF3"> AvailableMemory.Length);</tspan></text>
+  <text x="53" y="474" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">28</text>
+  <text x="79" y="474" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"></text>
+  <text x="53" y="496" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">29</text>
+  <text x="79" y="496" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">                _end </tspan><tspan fill="#FF7B72">=</tspan><tspan fill="#E6EDF3"> value;</tspan></text>
+  <text x="53" y="518" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">30</text>
+  <text x="79" y="518" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">                Memory </tspan><tspan fill="#FF7B72">=</tspan><tspan fill="#E6EDF3"> AvailableMemory.</tspan><tspan fill="#D2A8FF">Slice</tspan><tspan fill="#E6EDF3">(</tspan><tspan fill="#79C0FF">0</tspan><tspan fill="#E6EDF3">, value);</tspan></text>
+  <text x="53" y="540" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">31</text>
+  <text x="79" y="540" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">            }</tspan></text>
+  <text x="53" y="562" font-family="'JetBrains Mono', Consolas, monospace" font-size="12.5" fill="#484f58" text-anchor="end">32</text>
+  <text x="79" y="562" font-family="'JetBrains Mono', 'Cascadia Code', Consolas, monospace" font-size="13" xml:space="preserve"><tspan fill="#E6EDF3">        }</tspan></text>
+</svg>

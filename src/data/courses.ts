@@ -376,7 +376,7 @@ export const csharpArticles: Article[] = [
     "slug": "04-struktura-nativeaot",
     "number": 4,
     "title": "Структура NativeAOT: как C# превращается в один нативный бинарник",
-    "description": "Как C превращается в нативный бинарник: дерево, тримминг, старт.",
+    "description": "Как C# превращается в нативный бинарник: дерево зависимостей, тримминг и нативный старт.",
     "duration": 33,
     "tags": [
       "NativeAOT",

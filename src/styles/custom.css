@@ -1889,6 +1889,33 @@ html[data-theme='light'] .sl-markdown-content code:not(pre code) {
   line-height: 1.85;
 }
 
+.mb-article-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--mb-border);
+  background: var(--mb-surface-1);
+  display: block;
+  margin: 2rem auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.mb-article-body figure {
+  margin: 2.2rem 0;
+  text-align: center;
+}
+
+.mb-article-body figure img {
+  margin: 0 auto;
+}
+
+.mb-article-body figcaption {
+  margin-top: 0.75rem;
+  font-size: 0.86rem;
+  color: var(--mb-muted);
+  font-style: italic;
+}
+
 .mb-article-body > :first-child {
   margin-top: 0;
 }

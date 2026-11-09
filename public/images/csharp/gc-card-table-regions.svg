@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 480" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad-gen0" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="grad-gen1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="grad-gen2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="grad-card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#d97706" stop-opacity="0.1"/>
+    </linearGradient>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="108%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#0d1117" rx="12"/>
+
+  <!-- Title -->
+  <text x="40" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="#f0f6fc">CoreCLR GC: Сегменты, Регионы и Card Table</text>
+  <text x="40" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#8b949e">Отслеживание межпоколенческих ссылок через Write Barrier без полного сканирования Gen 2</text>
+
+  <!-- Regions/Segments Architecture -->
+  <g transform="translate(40, 100)">
+    <!-- Header -->
+    <rect x="0" y="0" width="820" height="150" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+    <text x="20" y="28" font-family="sans-serif" font-size="14" font-weight="600" fill="#c9d1d9">GC Heap (USE_REGIONS / 64-bit Architecture)</text>
+    
+    <!-- Region Gen 0 -->
+    <rect x="20" y="45" width="180" height="85" rx="6" fill="url(#grad-gen0)" stroke="#10b981" stroke-width="1.5"/>
+    <text x="35" y="72" font-family="sans-serif" font-size="14" font-weight="700" fill="#34d399">Region #0 (Gen 0)</text>
+    <text x="35" y="93" font-family="monospace" font-size="11" fill="#8b949e">alloc_ptr -&gt; alloc_limit</text>
+    <text x="35" y="112" font-family="sans-serif" font-size="11" fill="#a7f3d0">Быстрый bump-pointer</text>
+
+    <!-- Region Gen 1 -->
+    <rect x="220" y="45" width="180" height="85" rx="6" fill="url(#grad-gen1)" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="235" y="72" font-family="sans-serif" font-size="14" font-weight="700" fill="#60a5fa">Region #1 (Gen 1)</text>
+    <text x="235" y="93" font-family="monospace" font-size="11" fill="#8b949e">Ephemeral buffer</text>
+    <text x="235" y="112" font-family="sans-serif" font-size="11" fill="#93c5fd">Выжившие из Gen 0</text>
+
+    <!-- Region Gen 2 -->
+    <rect x="420" y="45" width="230" height="85" rx="6" fill="url(#grad-gen2)" stroke="#8b5cf6" stroke-width="1.5"/>
+    <text x="435" y="72" font-family="sans-serif" font-size="14" font-weight="700" fill="#a78bfa">Region #2..N (Gen 2 / LOH)</text>
+    <text x="435" y="93" font-family="monospace" font-size="11" fill="#8b949e">Долгоживущие объекты</text>
+    <text x="435" y="112" font-family="sans-serif" font-size="11" fill="#c4b5fd">Полная сборка (BGC)</text>
+
+    <!-- Free / Standby Region -->
+    <rect x="670" y="45" width="130" height="85" rx="6" fill="#21262d" stroke="#484f58" stroke-dasharray="4" stroke-width="1.5"/>
+    <text x="685" y="75" font-family="sans-serif" font-size="13" font-weight="600" fill="#8b949e">Free Region</text>
+    <text x="685" y="100" font-family="sans-serif" font-size="11" fill="#6e7681">Резерв для любого Gen</text>
+  </g>
+
+  <!-- Card Table and Write Barrier Section -->
+  <g transform="translate(40, 275)">
+    <rect x="0" y="0" width="820" height="175" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+    <text x="20" y="28" font-family="sans-serif" font-size="14" font-weight="600" fill="#c9d1d9">Write Barrier &amp; Card Table (Межпоколенческий барьер)</text>
+    <text x="20" y="48" font-family="sans-serif" font-size="12" fill="#8b949e">При записи ссылки в Gen 2: objOld.Ref = objYoung -&gt; JIT_WriteBarrier помечает соответствующую Card в таблице</text>
+
+    <!-- Cards representation -->
+    <g transform="translate(20, 65)">
+      <!-- Card cells -->
+      <rect x="0" y="0" width="70" height="45" rx="4" fill="#21262d" stroke="#30363d"/>
+      <text x="18" y="22" font-family="monospace" font-size="11" fill="#8b949e">Card 0</text>
+      <text x="18" y="38" font-family="monospace" font-size="10" fill="#484f58">0x00</text>
+
+      <rect x="80" y="0" width="70" height="45" rx="4" fill="#21262d" stroke="#30363d"/>
+      <text x="98" y="22" font-family="monospace" font-size="11" fill="#8b949e">Card 1</text>
+      <text x="98" y="38" font-family="monospace" font-size="10" fill="#484f58">0x00</text>
+
+      <!-- Dirty Card -->
+      <rect x="160" y="0" width="110" height="45" rx="4" fill="url(#grad-card)" stroke="#f59e0b" stroke-width="2"/>
+      <text x="175" y="22" font-family="monospace" font-size="11" font-weight="700" fill="#fbbf24">Card 2 [DIRTY]</text>
+      <text x="175" y="38" font-family="monospace" font-size="10" fill="#fcd34d">0xFF (Set bit)</text>
+
+      <rect x="280" y="0" width="70" height="45" rx="4" fill="#21262d" stroke="#30363d"/>
+      <text x="298" y="22" font-family="monospace" font-size="11" fill="#8b949e">Card 3</text>
+      <text x="298" y="38" font-family="monospace" font-size="10" fill="#484f58">0x00</text>
+
+      <rect x="360" y="0" width="70" height="45" rx="4" fill="#21262d" stroke="#30363d"/>
+      <text x="378" y="22" font-family="monospace" font-size="11" fill="#8b949e">Card 4</text>
+      <text x="378" y="38" font-family="monospace" font-size="10" fill="#484f58">0x00</text>
+
+      <!-- Card Bundle -->
+      <g transform="translate(460, 0)">
+        <rect x="0" y="0" width="320" height="45" rx="4" fill="#1c2128" stroke="#388bfd" stroke-width="1"/>
+        <text x="15" y="20" font-family="sans-serif" font-size="12" font-weight="600" fill="#58a6ff">card_bundle_table (Оптимизация)</text>
+        <text x="15" y="37" font-family="sans-serif" font-size="11" fill="#8b949e">1 бит на 32 карты: пропуск чистых 64-128 КБ за 1 CPU-инструкцию</text>
+      </g>
+    </g>
+
+    <text x="20" y="145" font-family="sans-serif" font-size="12" fill="#34d399">Итог: при сборке Gen 0 сборщик сканирует только память, покрытую грязными картами, не обходя миллионы старых объектов.</text>
+  </g>
+</svg>

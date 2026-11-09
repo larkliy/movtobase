@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 460" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad-span" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#1d4ed8" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="grad-obj" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#be185d" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#0d1117" rx="12"/>
+
+  <!-- Header -->
+  <text x="40" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="#f0f6fc">Анатомия памяти: Span&lt;T&gt; vs Managed Object</text>
+  <text x="40" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#8b949e">Interior Pointer (ref T) без накладных расходов на заголовок кучи и финализацию</text>
+
+  <!-- Left: Managed Object on Heap -->
+  <g transform="translate(40, 100)">
+    <rect x="0" y="0" width="380" height="310" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+    <text x="20" y="30" font-family="sans-serif" font-size="15" font-weight="600" fill="#f472b6">Обычный объект в куче (byte[] / string)</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="11" fill="#8b949e">Всегда требует аллокации в Gen 0, участия GC и заголовка</text>
+
+    <!-- Header Box -->
+    <rect x="20" y="70" width="340" height="50" rx="4" fill="#21262d" stroke="#f472b6" stroke-width="1"/>
+    <text x="35" y="93" font-family="monospace" font-size="12" font-weight="700" fill="#fbcfe8">SyncBlock Index (8 bytes)</text>
+    <text x="35" y="110" font-family="sans-serif" font-size="10" fill="#8b949e">Блокировка thin-lock, HashCode, GC-статус</text>
+
+    <!-- MethodTable -->
+    <rect x="20" y="130" width="340" height="50" rx="4" fill="#21262d" stroke="#f472b6" stroke-width="1"/>
+    <text x="35" y="153" font-family="monospace" font-size="12" font-weight="700" fill="#fbcfe8">MethodTable Pointer (8 bytes)</text>
+    <text x="35" y="170" font-family="sans-serif" font-size="10" fill="#8b949e">Указатель на метаданные типа EEType/MethodTable</text>
+
+    <!-- Array Length -->
+    <rect x="20" y="190" width="340" height="40" rx="4" fill="#21262d" stroke="#30363d"/>
+    <text x="35" y="215" font-family="monospace" font-size="12" fill="#c9d1d9">Length (4/8 bytes: размер массива / строки)</text>
+
+    <!-- Payload -->
+    <rect x="20" y="240" width="340" height="50" rx="4" fill="url(#grad-obj)" stroke="#db2777" stroke-width="1.5"/>
+    <text x="35" y="265" font-family="monospace" font-size="12" font-weight="700" fill="#f472b6">Данные элементов: [0], [1], [2] ... [N]</text>
+    <text x="35" y="282" font-family="sans-serif" font-size="10" fill="#fbcfe8">Минимальный оверхед объекта в куче: 24–32 байта</text>
+  </g>
+
+  <!-- Right: Span<T> on Stack -->
+  <g transform="translate(460, 100)">
+    <rect x="0" y="0" width="400" height="310" rx="8" fill="#161b22" stroke="#388bfd" stroke-width="1.5"/>
+    <text x="20" y="30" font-family="sans-serif" font-size="15" font-weight="600" fill="#58a6ff">ref struct Span&lt;T&gt; (Только стек)</text>
+    <text x="20" y="50" font-family="sans-serif" font-size="11" fill="#8b949e">Размер ровно 16 байт на x64, живет в регистре/стеке, 0 байт в GC</text>
+
+    <!-- ref T field -->
+    <rect x="20" y="70" width="360" height="95" rx="6" fill="url(#grad-span)" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="35" y="98" font-family="monospace" font-size="13" font-weight="700" fill="#60a5fa">internal readonly ref T _reference;</text>
+    <text x="35" y="120" font-family="sans-serif" font-size="11" fill="#c9d1d9">Managed ByRef (interior pointer):</text>
+    <text x="35" y="138" font-family="sans-serif" font-size="11" fill="#8b949e">• Стек (stackalloc) • Куча (внутрь массива) • Native (адрес)</text>
+    <text x="35" y="153" font-family="sans-serif" font-size="10" fill="#34d399">✓ GC автоматически обновляет адрес при дефрагментации кучи</text>
+
+    <!-- length field -->
+    <rect x="20" y="180" width="360" height="65" rx="6" fill="#21262d" stroke="#30363d"/>
+    <text x="35" y="208" font-family="monospace" font-size="13" font-weight="700" fill="#c9d1d9">private readonly int _length;</text>
+    <text x="35" y="230" font-family="sans-serif" font-size="11" fill="#8b949e">Количество доступных элементов (проверка выхода за границы BCE)</text>
+
+    <!-- Zero copy note -->
+    <g transform="translate(20, 260)">
+      <rect x="0" y="0" width="360" height="35" rx="4" fill="#1f2937" stroke="#374151"/>
+      <text x="12" y="22" font-family="sans-serif" font-size="11" fill="#a5b4fc">Slice(offset, len) — это просто: ref = ref + offset, len = newLen</text>
+    </g>
+  </g>
+</svg>
