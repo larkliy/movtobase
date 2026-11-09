@@ -30,15 +30,70 @@ tags: ["Pipelines", "I/O", "backpressure"]
 
 ![Внутренности System.IO.Pipelines: Цепочка BufferSegment](/movtobase/images/csharp/pipelines-buffer-chain.svg)
 
-Заглянем в исходники `src/libraries/System.IO.Pipelines/src/System/IO/Pipelines/BufferSegment.cs`:
+Заглянем в исходники `BufferSegment.cs`:
 
-![BufferSegment в Pipelines](/movtobase/images/csharp/code-pipe-buffersegment.svg)
+```csharp title="src/libraries/System.IO.Pipelines/src/System/IO/Pipelines/BufferSegment.cs"
+internal sealed class BufferSegment : ReadOnlySequenceSegment<byte>
+{
+    private IMemoryOwner<byte>? _memoryOwner;
+    private byte[]? _array;
+    private BufferSegment? _next;
+    private int _end;
+
+    /// <summary>
+    /// Смещение в AvailableMemory, где заканчивается диапазон активных байтов
+    /// </summary>
+    public int End
+    {
+        get => _end;
+        set => _end = value;
+    }
+
+    public BufferSegment? NextSegment
+    {
+        get => _next;
+        set
+        {
+            _next = value;
+            base.Next = value;
+        }
+    }
+
+    public void SetMemory(IMemoryOwner<byte> memoryOwner)
+    {
+        _memoryOwner = memoryOwner;
+        AvailableMemory = memoryOwner.Memory;
+    }
+
+    public void Reset()
+    {
+        _memoryOwner?.Dispose();
+        _memoryOwner = null;
+        _next = null;
+        _end = 0;
+        base.Next = null;
+        Start = 0;
+    }
+}
+```
 
 Каждый `BufferSegment` наследуется от `ReadOnlySequenceSegment<byte>` и инкапсулирует блок памяти (обычно 4096 байт), взятый из пула `MemoryPool<byte>.Shared`.
 
-А в файле `src/libraries/System.IO.Pipelines/src/System/IO/Pipelines/Pipe.cs` описано управление указателями:
+А в файле `Pipe.cs` описано управление указателями и учет невычитанных байтов:
 
-![Указатели голов и хвостов в Pipe](/movtobase/images/csharp/code-pipe-unconsumed.svg)
+```csharp title="src/libraries/System.IO.Pipelines/src/System/IO/Pipelines/Pipe.cs"
+// Количество байтов, закоммиченных писателем, но еще не потребленных читателем
+private long _unconsumedBytes;
+
+// Количество байтов, записанных в память, но еще не закоммиченных через FlushAsync
+private long _unflushedBytes;
+
+private PipeAwaitable _readerAwaitable;
+private PipeAwaitable _writerAwaitable;
+
+// Позиция последнего вызова Examined для управления Backpressure
+private long _lastExaminedIndex = -1;
+```
 
 Пайп отслеживает:
 - `_readHead` — сегмент, с которого начинает чтение `PipeReader`.

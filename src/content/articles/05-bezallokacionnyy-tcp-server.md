@@ -33,7 +33,21 @@ tags: ["TCP", "sockets", "zero-allocation"]
 
 Взглянем на устройство класса в `src/libraries/System.Net.Sockets/src/System/Net/Sockets/SocketAsyncEventArgs.cs`:
 
-![SocketAsyncEventArgs в CoreCLR](/movtobase/images/csharp/code-saea-struct.svg)
+```csharp title="src/libraries/System.Net.Sockets/src/System/Net/Sockets/SocketAsyncEventArgs.cs"
+public class SocketAsyncEventArgs : EventArgs, IDisposable
+{
+    private Memory<byte> _buffer;
+    private int _offset;
+    private int _count;
+    private Socket? _currentSocket;
+    private PreAllocatedOverlapped? _preAllocatedOverlapped;
+
+    // Переиспользуемое событие завершения операции
+    public event EventHandler<SocketAsyncEventArgs>? Completed;
+
+    public void SetBuffer(Memory<byte> buffer) { ... }
+}
+```
 
 Ключевая идея SAEA: **состояние асинхронной операции аллоцируется ровно один раз** (при старте сервера или при подключении клиента) и затем бесконечно переиспользуется для всех последующих операций чтения и записи.
 

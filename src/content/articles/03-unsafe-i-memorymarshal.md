@@ -37,17 +37,17 @@ tags: ["Unsafe", "MemoryMarshal", "pointers"]
 
 Откроем исходный код `src/libraries/System.Private.CoreLib/src/System/Runtime/CompilerServices/Unsafe.cs`:
 
-![JIT Intrinsic: AsPointer](/movtobase/images/csharp/code-unsafe-aspointer.svg)
-
-Любопытная деталь: в теле метода написано буквально:
-
-```csharp
+```csharp title="src/libraries/System.Private.CoreLib/src/System/Runtime/CompilerServices/Unsafe.cs"
 [Intrinsic]
+[NonVersionable]
+[MethodImpl(MethodImplOptions.AggressiveInlining)]
 public static unsafe void* AsPointer<T>(ref readonly T value)
 {
     throw new PlatformNotSupportedException();
 }
 ```
+
+Любопытная деталь: в теле метода написано буквально `throw new PlatformNotSupportedException();`.
 
 Почему этот метод никогда не падает с `PlatformNotSupportedException` в реальном приложении?
 
@@ -130,7 +130,19 @@ ref byte nextField = ref Unsafe.AddByteOffset(ref baseRef, (nint)offset);
 
 Посмотрим, как он реализован в CoreCLR (`src/libraries/System.Private.CoreLib/src/System/Runtime/InteropServices/MemoryMarshal.cs`):
 
-![Исходный код MemoryMarshal.Cast](/movtobase/images/csharp/code-memorymarshal-cast.svg)
+```csharp title="src/libraries/System.Private.CoreLib/src/System/Runtime/InteropServices/MemoryMarshal.cs"
+public static Span<TTo> Cast<TFrom, TTo>(Span<TFrom> span)
+    where TFrom : struct
+    where TTo : struct
+{
+    // Расчет новой длины с учетом размеров структур
+    int toSize = Unsafe.SizeOf<TTo>();
+    int fromSize = Unsafe.SizeOf<TFrom>();
+    int newLength = checked((int)((long)span.Length * fromSize / toSize));
+
+    return new Span<TTo>(ref Unsafe.As<TFrom, TTo>(ref MemoryMarshal.GetReference(span)), newLength);
+}
+```
 
 Метод берет `Span<TFrom>` и возвращает `Span<TTo>`, указывающий **на ту же самую физическую память**. 
 
@@ -171,17 +183,16 @@ JIT компилирует две скрытые проверки:
 
 В критическом сетевом коде это лишние инструкции на каждый элемент. 
 
-Метод `MemoryMarshal.GetArrayDataReference` достаёт прямую управляемую ссылку на нулевой элемент массива:
+Метод `MemoryMarshal.GetArrayDataReference` достаёт прямую управляемую ссылку на нулевой элемент массива в обход проверок:
 
-![GetArrayDataReference в MemoryMarshal](/movtobase/images/csharp/code-memorymarshal-getarraydata.svg)
-
-Обратите внимание на строчку в реализации:
-
-```csharp
-return ref Unsafe.AddByteOffset(
-    ref Unsafe.As<RawData>(array).Data, 
-    (nuint)RuntimeHelpers.GetMethodTable(array)->BaseSize - (nuint)(2 * sizeof(IntPtr))
-);
+```csharp title="src/libraries/System.Private.CoreLib/src/System/Runtime/InteropServices/MemoryMarshal.cs"
+[MethodImpl(MethodImplOptions.AggressiveInlining)]
+public static ref T GetArrayDataReference<T>(T[] array)
+{
+    return ref Unsafe.As<byte, T>(ref Unsafe.AddByteOffset(
+        ref Unsafe.As<RawData>(array).Data,
+        (nuint)RuntimeHelpers.OffsetToStringData));
+}
 ```
 
 Рантайм берет указатель на массив, сдвигает его на базовый размер заголовка объекта (`BaseSize`) и возвращает `ref byte` первого реального элемента данных. Получив эту ссылку, вы можете обходить массив через `Unsafe.Add` со скоростью нативного C++.

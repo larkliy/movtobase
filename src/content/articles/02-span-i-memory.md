@@ -19,7 +19,25 @@ tags: ["Span", "Memory", "allocations"]
 
 Взглянем на определение `Span<T>` в базовой библиотеке рантайма `src/libraries/System.Private.CoreLib/src/System/Span.cs`:
 
-![Анатомия ref struct Span<T>](/movtobase/images/csharp/code-span-struct-def.svg)
+```csharp title="src/libraries/System.Private.CoreLib/src/System/Span.cs"
+public readonly ref struct Span<T>
+{
+    internal readonly ref T _reference; // Управляемый указатель (interior pointer)
+    private readonly int _length;       // Длина диапазона
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Span(T[]? array)
+    {
+        if (array == null)
+        {
+            this = default;
+            return;
+        }
+        _reference = ref MemoryMarshal.GetArrayDataReference(array);
+        _length = array.Length;
+    }
+}
+```
 
 Структура содержит всего два поля:
 1. `internal readonly ref T _reference` — управляемая ссылка (managed byref / interior pointer).
@@ -133,7 +151,27 @@ JIT на этапе SSA-анализа доказывает инвариант �
 
 Заглянем в `src/libraries/System.Private.CoreLib/src/System/Memory.cs`:
 
-![Структура Memory<T> для async-контекстов](/movtobase/images/csharp/code-memory-struct-def.svg)
+```csharp title="src/libraries/System.Private.CoreLib/src/System/Memory.cs"
+public readonly struct Memory<T>
+{
+    private readonly object? _object;
+    private readonly int _index;
+    private readonly int _length;
+
+    public Span<T> Span
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            if (_object == null)
+                return default;
+            if (typeof(T) == typeof(char) && _object is string s)
+                return new Span<T>(ref Unsafe.As<char, T>(ref s.GetRawStringData()), s.Length);
+            return new Span<T>((T[])_object).Slice(_index, _length);
+        }
+    }
+}
+```
 
 В отличие от `Span<T>`, `Memory<T>` — это **обычная структура** (`struct`), а не `ref struct`. Она спокойно пересекает границы `await`, может храниться в полях классов и передаваться в таски.
 
@@ -152,7 +190,17 @@ JIT на этапе SSA-анализа доказывает инвариант �
 
 Для этого рантайм предоставляет абстрактный класс `MemoryManager<T>` (`src/libraries/System.Private.CoreLib/src/System/Buffers/MemoryManager.cs`):
 
-![Базовый класс MemoryManager<T>](/movtobase/images/csharp/code-memory-manager.svg)
+```csharp title="src/libraries/System.Private.CoreLib/src/System/Buffers/MemoryManager.cs"
+public abstract class MemoryManager<T> : IMemoryOwner<T>, IPinnable
+{
+    public abstract Span<T> GetSpan();
+    public abstract MemoryHandle Pin(int elementIndex = 0);
+    public abstract void Unpin();
+    protected abstract void Dispose(bool disposing);
+
+    public virtual Memory<T> Memory => CreateMemory(Length);
+}
+```
 
 Реализовав три метода — `GetSpan()`, `Pin()` и `Unpin()`, вы получаете полноценный объект-владелец. Вызов `manager.Memory` даёт валидный экземпляр `Memory<T>`, который можно безопасно передавать в любые стандартные API .NET, включая Kestrel, `System.IO.Pipelines` и `HttpClient`.
 

@@ -21,7 +21,17 @@ tags: ["GC", "CoreCLR", "memory"]
 
 Заглянем в заголовочный файл `src/coreclr/gc/gcinterface.h`:
 
-![Контекст аллокации потока: fast path](/movtobase/images/csharp/code-gc-alloc-context.svg)
+```cpp title="src/coreclr/gc/gcinterface.h"
+struct gc_alloc_context
+{
+    uint8_t*        alloc_ptr;       // Указатель на следующий свободный байт
+    uint8_t*        alloc_limit;     // Верхняя граница текущего кванта Gen 0
+    int64_t         alloc_bytes;     // Общий объем выделенной памяти
+    int64_t         alloc_bytes_uoh; // Объем аллокаций в UOH (LOH / POH)
+    gc_heap*        alloc_heap;
+    heap_segment*   alloc_segment;
+};
+```
 
 Поле `alloc_ptr` хранит адрес следующего свободного байта, а `alloc_limit` — верхнюю границу выделенного потоку куска эфемерного сегмента (кванта Gen 0). 
 
@@ -104,7 +114,15 @@ mov   byte ptr [r8 + rcx], 0xFF ; помечаем карточку как «г�
 
 Посмотрим, как это выглядит в C++ ядре рантайма `src/coreclr/gc/card_table.cpp`:
 
-![Реализация барьера записи card_bundle_set](/movtobase/images/csharp/code-gc-card-table.svg)
+```cpp title="src/coreclr/gc/card_table.cpp"
+// Установка бита в двухуровневой таблице бандлов карт памяти
+inline void card_bundle_set(size_t card)
+{
+    size_t card_bundle_byte = card >> 10;
+    size_t card_bundle_bit  = (card >> 5) & 0x1F;
+    g_gc_card_bundle_table[card_bundle_byte] |= (1U << card_bundle_bit);
+}
+```
 
 Для ускорения проверки рантайм использует двухуровневую структуру: `card_bundle_table`. Один бит в бандле покрывает сразу 32 или 64 обычные карточки. При сборке Gen 0 сборщику достаточно проверить несколько машинных слов в таблице бандлов: если слово равно нулю, гигантский диапазон Gen 2 пропускается целиком за одну инструкцию `test`.
 
@@ -118,7 +136,13 @@ mov   byte ptr [r8 + rcx], 0xFF ; помечаем карточку как «г�
 
 Откроем внутренний заголовочный файл `src/coreclr/gc/gcpriv.h`:
 
-![Инварианты регионов в CoreCLR](/movtobase/images/csharp/code-gc-regions-invariants.svg)
+```cpp title="src/coreclr/gc/gcpriv.h"
+// Инварианты адресации регионов в CoreCLR GC (USE_REGIONS)
+inline bool is_in_range(uint8_t* address, heap_segment* seg)
+{
+    return address >= seg->allocated && address < seg->committed;
+}
+```
 
 В архитектуре регионов хип разбивается на блоки фиксированного размера (обычно по 16–32 МБ). Ключевое свойство: **любой свободный регион может быть назначен любому поколению**. 
 
@@ -147,7 +171,17 @@ LOH считается частью Gen 2 и собирается только �
 
 Выделить массив сразу в POH можно через `GC.AllocateUninitializedArray`:
 
-![AllocateUninitializedArray и куча POH](/movtobase/images/csharp/code-gc-allocate-uninitialized.svg)
+```csharp title="src/coreclr/System.Private.CoreLib/src/System/GC.CoreCLR.cs"
+// Выделение массива без зануления и поддержка закрепления в POH
+public static T[] AllocateUninitializedArray<T>(int length, bool pinned = false)
+{
+    if (pinned)
+    {
+        return GC.AllocateArray<T>(length, pinned: true); // Размещение сразу в POH
+    }
+    return GC.AllocateUninitializedArray<T>(length);
+}
+```
 
 ---
 

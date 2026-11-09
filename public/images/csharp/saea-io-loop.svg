@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 480" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 460" width="900" height="460">
   <defs>
     <linearGradient id="grad-saea" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.25"/>
@@ -17,57 +17,62 @@
   <rect width="100%" height="100%" fill="#0d1117" rx="12"/>
 
   <!-- Title -->
-  <text x="40" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="#f0f6fc">Архитектура SocketAsyncEventArgs: Zero-Allocation I/O Loop</text>
-  <text x="40" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" fill="#8b949e">Переиспользование одного контекста и закрепленного буфера через нативный IOCP/epoll</text>
+  <text x="40" y="45" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="700" fill="#f0f6fc">Архитектура SocketAsyncEventArgs: Zero-Allocation I/O Loop</text>
+  <text x="40" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12.5" fill="#8b949e">Переиспользование контекста и POH-буфера через нативный IOCP / epoll</text>
 
   <!-- Flow Steps -->
-  <g transform="translate(40, 100)">
+  <g transform="translate(40, 95)">
     <!-- Node 1: SAEA Pool -->
-    <rect x="0" y="0" width="230" height="150" rx="8" fill="url(#grad-saea)" stroke="#3b82f6" stroke-width="1.5"/>
-    <text x="20" y="30" font-family="sans-serif" font-size="14" font-weight="700" fill="#60a5fa">1. SAEA Pool / POH Buffer</text>
-    <text x="20" y="55" font-family="monospace" font-size="11" fill="#c9d1d9">SocketAsyncEventArgs</text>
-    <text x="20" y="75" font-family="sans-serif" font-size="11" fill="#8b949e">• Заранее выделен на старте</text>
-    <text x="20" y="95" font-family="sans-serif" font-size="11" fill="#8b949e">• Буфер закреплен в POH</text>
-    <text x="20" y="115" font-family="sans-serif" font-size="11" fill="#8b949e">• Привязан PreAllocatedOverlapped</text>
-    <text x="20" y="135" font-family="sans-serif" font-size="11" font-weight="600" fill="#34d399">0 аллокаций при приёме</text>
+    <rect x="0" y="0" width="245" height="155" rx="8" fill="url(#grad-saea)" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#60a5fa">1. SAEA Pool / POH Buffer</text>
+    <text x="18" y="52" font-family="monospace" font-size="11" fill="#c9d1d9">SocketAsyncEventArgs</text>
+    <text x="18" y="74" font-family="sans-serif" font-size="11" fill="#8b949e">• Выделен при старте сервиса</text>
+    <text x="18" y="94" font-family="sans-serif" font-size="11" fill="#8b949e">• Буфер закреплен в POH</text>
+    <text x="18" y="114" font-family="sans-serif" font-size="11" fill="#8b949e">• Связан с Overlapped</text>
+    <text x="18" y="138" font-family="sans-serif" font-size="11.5" font-weight="600" fill="#34d399">0 байт в GC при приеме</text>
 
     <!-- Arrow 1 -> 2 -->
-    <path d="M 235,75 L 285,75 M 275,70 L 285,75 L 275,80" stroke="#58a6ff" stroke-width="2" fill="none"/>
+    <path d="M 252,78 L 280,78 M 272,73 L 280,78 L 272,83" stroke="#58a6ff" stroke-width="2" fill="none"/>
 
     <!-- Node 2: CoreCLR Socket -->
-    <rect x="290" y="0" width="240" height="150" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
-    <text x="20" y="30" font-family="sans-serif" font-size="14" font-weight="700" fill="#c9d1d9">2. Socket.ReceiveAsync</text>
-    <text x="20" y="55" font-family="sans-serif" font-size="11" fill="#8b949e">Передаем SAEA в CoreCLR:</text>
-    <text x="20" y="80" font-family="monospace" font-size="11" fill="#f0f6fc">bool pending =</text>
-    <text x="20" y="100" font-family="monospace" font-size="11" fill="#f0f6fc">  socket.ReceiveAsync(saea);</text>
-    <text x="20" y="125" font-family="sans-serif" font-size="11" fill="#8b949e">Если true: операция ушла в ОС</text>
-    <text x="20" y="140" font-family="sans-serif" font-size="10" fill="#a5b4fc">Если false: завершилась синхронно</text>
+    <rect x="288" y="0" width="245" height="155" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+    <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#c9d1d9">2. Socket.ReceiveAsync</text>
+    <text x="18" y="52" font-family="sans-serif" font-size="11" fill="#8b949e">Передаем SAEA в CoreCLR:</text>
+    <rect x="18" y="65" width="208" height="42" rx="4" fill="#0d1117" stroke="#30363d"/>
+    <text x="28" y="83" font-family="monospace" font-size="10.5" fill="#f0f6fc">bool pending =</text>
+    <text x="28" y="98" font-family="monospace" font-size="10.5" fill="#f0f6fc">  s.ReceiveAsync(saea);</text>
+    <text x="18" y="125" font-family="sans-serif" font-size="10.5" fill="#8b949e">true: запрос передан в ядро ОС</text>
+    <text x="18" y="141" font-family="sans-serif" font-size="10.5" fill="#a5b4fc">false: завершен синхронно</text>
 
     <!-- Arrow 2 -> 3 -->
-    <path d="M 535,75 L 585,75 M 575,70 L 585,75 L 575,80" stroke="#a78bfa" stroke-width="2" fill="none"/>
+    <path d="M 540,78 L 568,78 M 560,73 L 568,78 L 560,83" stroke="#a78bfa" stroke-width="2" fill="none"/>
 
     <!-- Node 3: OS Kernel -->
-    <rect x="590" y="0" width="230" height="150" rx="8" fill="url(#grad-os)" stroke="#8b5cf6" stroke-width="1.5"/>
-    <text x="20" y="30" font-family="sans-serif" font-size="14" font-weight="700" fill="#a78bfa">3. OS Kernel (I/O Port)</text>
-    <text x="20" y="55" font-family="sans-serif" font-size="11" fill="#c9d1d9">Асинхронная вычитка пакета:</text>
-    <text x="20" y="78" font-family="sans-serif" font-size="11" fill="#8b949e">• Windows: IOCP + WSARecv</text>
-    <text x="20" y="98" font-family="sans-serif" font-size="11" fill="#8b949e">• Linux: epoll edge-triggered</text>
-    <text x="20" y="125" font-family="sans-serif" font-size="11" fill="#a78bfa">Прямая DMA запись в буфер</text>
+    <rect x="575" y="0" width="245" height="155" rx="8" fill="url(#grad-os)" stroke="#8b5cf6" stroke-width="1.5"/>
+    <text x="18" y="28" font-family="sans-serif" font-size="13" font-weight="700" fill="#a78bfa">3. OS Kernel (I/O)</text>
+    <text x="18" y="52" font-family="sans-serif" font-size="11" fill="#c9d1d9">Асинхронная вычитка пакета:</text>
+    <text x="18" y="74" font-family="sans-serif" font-size="11" fill="#8b949e">• Win: IOCP + WSARecv</text>
+    <text x="18" y="94" font-family="sans-serif" font-size="11" fill="#8b949e">• Linux: epoll (edge-triggered)</text>
+    <text x="18" y="114" font-family="sans-serif" font-size="11" fill="#8b949e">• Direct DMA в память POH</text>
+    <text x="18" y="138" font-family="sans-serif" font-size="11.5" font-weight="600" fill="#c4b5fd">Без промежуточных буферов</text>
   </g>
 
   <!-- Return Loop (Bottom) -->
-  <g transform="translate(40, 290)">
-    <rect x="0" y="0" width="820" height="140" rx="8" fill="url(#grad-buf)" stroke="#10b981" stroke-width="1.5"/>
+  <g transform="translate(40, 275)">
+    <rect x="0" y="0" width="820" height="150" rx="8" fill="url(#grad-buf)" stroke="#10b981" stroke-width="1.5"/>
     <text x="20" y="28" font-family="sans-serif" font-size="14" font-weight="700" fill="#34d399">4. Завершение и возврат в пул (Loop Callback)</text>
     
     <text x="20" y="55" font-family="sans-serif" font-size="12" fill="#c9d1d9">
-      Ядро ОС сигнализирует поток пула ввода-вывода (IOCP thread) -&gt; вызывается обработчик <tspan font-family="monospace" fill="#a7f3d0">saea.Completed</tspan>
+      Ядро ОС сигнализирует поток ввода-вывода (IOCP / epoll) -> вызывается обработчик <tspan font-family="monospace" fill="#a7f3d0">saea.Completed</tspan>.
     </text>
     <text x="20" y="80" font-family="sans-serif" font-size="12" fill="#c9d1d9">
-      Приложение обрабатывает <tspan font-family="monospace" fill="#a7f3d0">saea.MemoryBuffer.Span.Slice(0, saea.BytesTransferred)</tspan> по месту без аллокации строк или Task.
+      Приложение разбирает срез <tspan font-family="monospace" fill="#a7f3d0">saea.MemoryBuffer.Span</tspan> на месте без аллокаций строк и Task.
     </text>
     <text x="20" y="110" font-family="sans-serif" font-size="12" font-weight="600" fill="#6ee7b7">
-      Тот же самый экземпляр SAEA немедленно отправляется на следующее чтение. Результат: 0 байт аллокаций в Gen 0 на миллион запросов.
+      Тот же самый экземпляр SAEA немедленно отправляется на следующее чтение.
+    </text>
+    <text x="20" y="132" font-family="sans-serif" font-size="11.5" fill="#a7f3d0">
+      Результат: ровная линия p99 latency и 0 байт мусора в куче на миллион запросов.
     </text>
   </g>
 </svg>

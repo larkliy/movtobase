@@ -82,7 +82,16 @@ tags: ["NativeAOT", "compilation"]
 
 Заглянем в `src/coreclr/nativeaot/Common/src/Internal/Runtime/MethodTable.cs`:
 
-![MethodTable в NativeAOT](/movtobase/images/csharp/code-nativeaot-methodtable.svg)
+```csharp title="src/coreclr/nativeaot/Common/src/Internal/Runtime/MethodTable.cs"
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct MethodTable
+{
+    private ushort _usComponentSize; // Размер элемента (для массивов / строк)
+    private ushort _uFlags;          // Флаги типа (ValueType, Finalizer, etc.)
+    private uint   _uBaseSize;       // Базовый размер объекта в куче
+    private void*  _pEEType;         // Метаданные типа в секции данных
+}
+```
 
 Структура `MethodTable` в NativeAOT оптимизирована под минимальный размер. 
 
@@ -100,7 +109,14 @@ tags: ["NativeAOT", "compilation"]
 
 Взглянем на точку входа в `src/coreclr/nativeaot/Bootstrap/main.cpp`:
 
-![Точка входа main() и запуск CoreLib](/movtobase/images/csharp/code-nativeaot-bootstrap-main.svg)
+```cpp title="src/coreclr/nativeaot/Bootstrap/main.cpp"
+int __cdecl main(int argc, char* argv[])
+{
+    // Инициализация рантайма NativeAOT и передача управления в скомпилированный C# Main
+    InitializeRuntime();
+    return __managed__Main(argc, argv);
+}
+```
 
 Последовательность старта выглядит так:
 
